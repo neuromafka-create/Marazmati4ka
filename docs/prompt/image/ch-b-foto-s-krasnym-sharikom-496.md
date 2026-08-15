@@ -1,3 +1,11 @@
+---
+title: "Ч-б фото с красным шариком"
+type: prompt
+domain: image
+domains: [image]
+source: "https://t.me/promt_neiroholst/753"
+updated: 2026-08-15
+---
 [**Источник**](https://t.me/promt_neiroholst/753): https://t.me/promt_neiroholst/753
 
 Заходим в https://t.me/syntxaibot?start=aff_1072269988   (бот платный) , переходим в 

@@ -1,6 +1,6 @@
 import { Library } from "@/components/Library";
-import { Shell } from "@/components/Shell";
-import { listNotes, parseDir, parseSort, stats } from "@/lib/notes";
+import { AppShell } from "@/components/AppShell";
+import { listNotes, parseDir, parseSort, stats, type Note } from "@/lib/notes";
 import { taxonPayload } from "@/lib/taxonomy";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function Home({
   const domains = Array.isArray(sp.domain) ? sp.domain : sp.domain ? [sp.domain] : [];
   const sort = parseSort(typeof sp.sort === "string" ? sp.sort : null);
   const dir = parseDir(typeof sp.dir === "string" ? sp.dir : null);
-  let notes;
+  let notes: Note[] = [];
   try {
     notes = listNotes({ q, types, domains, sort, dir });
   } catch {
@@ -49,7 +49,7 @@ export default async function Home({
     cover_url: n.cover_url ? String(n.cover_url) : null,
   }));
   return (
-    <Shell initialQuery={q}>
+    <AppShell initialQuery={q}>
       <Library
         notes={cards}
         total={total}
@@ -63,6 +63,6 @@ export default async function Home({
         sort={sort}
         dir={dir}
       />
-    </Shell>
+    </AppShell>
   );
 }

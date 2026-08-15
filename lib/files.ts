@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getDb } from "./db";
-import { noteMediaDir } from "./paths";
+import { absPath, noteMediaDir } from "./paths";
 import { nowIso } from "./markdown";
 
 export const ALLOWED: Record<string, string> = {
@@ -63,7 +63,7 @@ export function attachFile(opts: {
   const dir = noteMediaDir(opts.noteId);
   fs.mkdirSync(dir, { recursive: true });
   const rel = path.posix.join("data", "media", String(opts.noteId), `${fileId}.${ext}`);
-  const abs = path.join(process.cwd(), rel);
+  const abs = absPath(rel);
   fs.writeFileSync(abs, opts.buffer);
   db.prepare("UPDATE files SET path = ?, preview_path = ? WHERE id = ?").run(rel, rel, fileId);
 
@@ -96,6 +96,47 @@ export function attachFile(opts: {
   return { id: fileId, url: `/media/${fileId}` };
 }
 
+export function setFileRole(noteId: number, fileId: number, role: FileRole) {
+  const db = getDb();
+  const link = db
+    .prepare("SELECT id, role FROM note_files WHERE note_id = ? AND file_id = ?")
+    .get(noteId, fileId) as { id: number; role: string } | undefined;
+  if (!link) throw new Error("Файл не привязан к заметке");
+  if (link.role === role) return { id: fileId, role };
+
+  if (role === "cover") {
+    setCover(noteId, fileId);
+    return { id: fileId, role };
+  }
+
+  const sort =
+    (
+      db
+        .prepare("SELECT COALESCE(MAX(sort), -1) + 1 AS s FROM note_files WHERE note_id = ? AND role = ?")
+        .get(noteId, role) as { s: number }
+    ).s ?? 0;
+  db.prepare("UPDATE note_files SET role = ?, sort = ? WHERE note_id = ? AND file_id = ?").run(
+    role,
+    sort,
+    noteId,
+    fileId
+  );
+
+  const note = db.prepare("SELECT cover_file_id FROM notes WHERE id = ?").get(noteId) as
+    | { cover_file_id: number | null }
+    | undefined;
+  if (note && Number(note.cover_file_id) === fileId) {
+    const next = db
+      .prepare(
+        "SELECT file_id FROM note_files WHERE note_id = ? AND file_id != ? ORDER BY CASE role WHEN 'cover' THEN 0 ELSE 1 END, sort, id LIMIT 1"
+      )
+      .get(noteId, fileId) as { file_id: number } | undefined;
+    db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(next ? next.file_id : null, noteId);
+  }
+
+  return { id: fileId, role };
+}
+
 export function setCover(noteId: number, fileId: number) {
   const db = getDb();
   const link = db
@@ -121,7 +162,7 @@ export function getFileRow(id: number) {
 }
 
 export function absoluteFilePath(rel: string) {
-  return path.join(process.cwd(), rel.split("/").join(path.sep));
+  return absPath(rel);
 }
 
 export function detachFile(noteId: number, fileId: number) {

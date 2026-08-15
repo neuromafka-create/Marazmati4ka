@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { Shell } from "@/components/Shell";
+import { AppShell } from "@/components/AppShell";
 
 export default function NotFound() {
   return (
-    <Shell>
+    <AppShell>
       <div className="empty">
         <p>Такой записи нет.</p>
         <p>
           <Link href="/">Вернуться в библиотеку</Link>
         </p>
       </div>
-    </Shell>
+    </AppShell>
   );
 }

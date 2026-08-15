@@ -15,7 +15,7 @@ import {
 } from "./markdown";
 import { setNoteDomains } from "./notes";
 import { ensureTaxon } from "./taxonomy";
-import { DOCS_DIR } from "./paths";
+import { DOCS_DIR, ROOT } from "./paths";
 
 function walkMd(dir: string, acc: string[] = []) {
   if (!fs.existsSync(dir)) return acc;
@@ -35,7 +35,7 @@ export function importDocs() {
   let conflicts = 0;
 
   for (const abs of files) {
-    const rel = path.relative(process.cwd(), abs).split(path.sep).join("/");
+    const rel = path.relative(ROOT, abs).split(path.sep).join("/");
     const parts = rel.split("/");
     // docs / type / domain / file.md
     const type = parts[1] || "";

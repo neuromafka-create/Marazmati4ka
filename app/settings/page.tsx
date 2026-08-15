@@ -1,5 +1,7 @@
-import { Shell } from "@/components/Shell";
+import { AiSettings } from "@/components/AiSettings";
+import { AppShell } from "@/components/AppShell";
 import { TaxonManager } from "@/components/TaxonManager";
+import { publicSettings } from "@/lib/settings";
 import { listTaxons, seedTaxons } from "@/lib/taxonomy";
 
 export const dynamic = "force-dynamic";
@@ -8,15 +10,20 @@ export const runtime = "nodejs";
 export default function SettingsPage() {
   seedTaxons();
   return (
-    <Shell>
+    <AppShell>
       <div className="note-page">
-        <div className="crumbs">Справочники</div>
-        <h1 className="settings-title">Типы и области</h1>
-        <p className="settings-lead">
-          Как разделы инфоблока: живут в базе. Код идёт в путь файла, название — на экране.
-        </p>
-        <TaxonManager types={listTaxons("type")} domains={listTaxons("domain")} />
+        <div className="crumbs">Настройки</div>
+        <h1 className="settings-title">Настройки</h1>
+        <p className="settings-lead">Локальный блокнот: нейросеть, типы и области. Всё живёт в вашей базе.</p>
+        <AiSettings initial={publicSettings()} />
+        <section className="settings-block">
+          <h2>Типы и области</h2>
+          <p className="settings-lead" style={{ marginBottom: 16 }}>
+            Как разделы инфоблока: живут в базе. Код идёт в путь файла, название — на экране.
+          </p>
+          <TaxonManager types={listTaxons("type")} domains={listTaxons("domain")} />
+        </section>
       </div>
-    </Shell>
+    </AppShell>
   );
 }

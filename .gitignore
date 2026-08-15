@@ -1,5 +1,7 @@
 node_modules
 .next
+dist-desktop
+desktop/payload
 data/*.db
 data/*.db-*
 data/media
@@ -9,3 +11,4 @@ _sort_previews.jsonl
 *.log
 .DS_Store
 Thumbs.db
+tsconfig.tsbuildinfo

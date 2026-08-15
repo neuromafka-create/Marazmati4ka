@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
+import { getBrand } from "@/lib/brand";
 import { ensureImported } from "@/lib/boot";
 import "./globals.css";
 
@@ -15,10 +16,10 @@ const serif = IBM_Plex_Serif({
   variable: "--font-serif",
 });
 
-export const metadata: Metadata = {
-  title: "Marazmati4ka",
-  description: "Блокнот промптов и инструкций",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = getBrand();
+  return { title: brand.name, description: brand.description };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   ensureImported();

@@ -1,3 +1,11 @@
+---
+title: "[Стикеры с вашими питомцем](https://t.me/c/3256552589/120)"
+type: prompt
+domain: image
+domains: [image]
+source: "https://t.me/c/3256552589/120"
+updated: 2026-08-15
+---
 # [Стикеры с вашими питомцем](https://t.me/c/3256552589/120)
 
 Для создания таких фото в Telegram используйте ChatGpt Image. Переходи в бота, (https://t.me/neirobanana_bot?start=bananaprompt) жми /start -> выбор модели -> ChatGpt Image -> назад -> сгенерировать.

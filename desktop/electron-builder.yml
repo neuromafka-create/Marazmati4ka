@@ -1,0 +1,49 @@
+appId: pw.marazmati4ka.app
+productName: Marazmati4ka
+copyright: Copyright © 2026
+asar: true
+directories:
+  output: dist-desktop
+  buildResources: desktop
+files:
+  - desktop/main.cjs
+  - desktop/preload.cjs
+  - package.json
+extraResources:
+  - from: desktop/payload/app
+    to: notebook
+    filter:
+      - "**/*"
+  - from: desktop/payload/app/node_modules
+    to: notebook/node_modules
+    filter:
+      - "**/*"
+  - from: desktop/payload/runtime
+    to: runtime
+  - from: desktop/payload/docs
+    to: docs
+  - from: desktop/payload/seed
+    to: seed
+  - from: desktop/flavors/marazmati4ka.json
+    to: flavor.json
+win:
+  icon: desktop/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Marazmati4ka-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Marazmati4ka
+  uninstallDisplayName: Marazmati4ka
+  installerLanguages:
+    - ru_RU
+    - en_US
+  language: 1049
+  deleteAppDataOnUninstall: false
+electronVersion: 36.3.2

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Editor } from "@/components/Editor";
-import { Shell } from "@/components/Shell";
+import { AppShell } from "@/components/AppShell";
 import { getNote, getNoteFiles } from "@/lib/notes";
+import { publicSettings } from "@/lib/settings";
 import { listTaxons, seedTaxons } from "@/lib/taxonomy";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
   const files = getNoteFiles(note.id);
   seedTaxons();
   return (
-    <Shell>
+    <AppShell>
       <Editor
         noteId={note.id}
         initial={{
@@ -29,7 +30,8 @@ export default async function EditPage({ params }: { params: Promise<{ id: strin
         files={files}
         types={listTaxons("type")}
         domains={listTaxons("domain")}
+        hasAiKey={publicSettings().hasKey}
       />
-    </Shell>
+    </AppShell>
   );
 }

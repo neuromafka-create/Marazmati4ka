@@ -3,7 +3,7 @@ import path from "node:path";
 import { getDb } from "./db";
 import { extractPrompt, hashText, nowIso, slugify, snippetOf } from "./markdown";
 import { defaultDomainSlug, defaultTypeSlug, isDomain, isType } from "./taxonomy";
-import { DOCS_DIR, TRASH_DIR } from "./paths";
+import { absPath, DOCS_DIR, TRASH_DIR } from "./paths";
 
 export type Note = {
   id: number;
@@ -60,7 +60,7 @@ export function listNotes(opts: {
   const q = opts.q?.trim();
 
   const where = ["n.active = 1", "n.draft = 0"];
-  const params: unknown[] = [];
+  const params: (string | number)[] = [];
 
   if (types.length) {
     where.push(`n.type IN (${types.map(() => "?").join(",")})`);
@@ -95,7 +95,7 @@ export function listNotes(opts: {
         ? `n.created_at ${dir === "asc" ? "ASC" : "DESC"}`
         : `n.updated_at ${dir === "asc" ? "ASC" : "DESC"}`;
   sql += ` WHERE ${where.join(" AND ")} ORDER BY ${orderSql}`;
-  const rows = (db.prepare(sql).all(...params) as Note[]).map(plain) as Note[];
+  const rows = (db.prepare(sql).all(...params) as unknown as Note[]).map(plain);
   const withDomains = attachDomains(rows);
   if (sort !== "title") return withDomains;
   const mul = dir === "asc" ? 1 : -1;
@@ -255,7 +255,7 @@ export function trashNote(id: number) {
   if (!note) throw new Error("Заметка не найдена");
   db.prepare("UPDATE notes SET active = 0, draft = 0, updated_at = ? WHERE id = ?").run(nowIso(), id);
   if (note.path) {
-    const abs = path.join(process.cwd(), note.path);
+    const abs = absPath(note.path);
     if (fs.existsSync(abs)) {
       fs.mkdirSync(TRASH_DIR, { recursive: true });
       const dest = path.join(TRASH_DIR, `${new Date().toISOString().slice(0, 10)}_${path.basename(note.path)}`);
@@ -267,11 +267,11 @@ export function trashNote(id: number) {
 
 function writeMirror(note: Note) {
   const rel = path.posix.join("docs", note.type, note.domain, `${note.slug}.md`);
-  const abs = path.join(process.cwd(), rel);
+  const abs = absPath(rel);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
 
   if (note.path && note.path !== rel) {
-    const oldAbs = path.join(process.cwd(), note.path);
+    const oldAbs = absPath(note.path);
     if (fs.existsSync(oldAbs) && oldAbs !== abs) {
       try {
         fs.unlinkSync(oldAbs);

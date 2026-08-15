@@ -1,0 +1,45 @@
+appId: pw.skleroznik.app
+productName: Skleroznik
+copyright: Copyright © 2026
+asar: true
+directories:
+  output: dist-desktop
+  buildResources: desktop
+files:
+  - desktop/main.cjs
+  - desktop/preload.cjs
+  - package.json
+extraResources:
+  - from: desktop/payload/app
+    to: notebook
+    filter:
+      - "**/*"
+  - from: desktop/payload/app/node_modules
+    to: notebook/node_modules
+    filter:
+      - "**/*"
+  - from: desktop/payload/runtime
+    to: runtime
+  - from: desktop/flavors/skleroznik.json
+    to: flavor.json
+win:
+  icon: desktop/icon-skleroznik.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Skleroznik-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Склерозник
+  uninstallDisplayName: Склерозник
+  installerLanguages:
+    - ru_RU
+    - en_US
+  language: 1049
+  deleteAppDataOnUninstall: false
+electronVersion: 36.3.2

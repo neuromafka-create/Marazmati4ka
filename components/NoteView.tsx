@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { IllustrateButton, mergeGeneratedFile } from "./IllustrateButton";
 import { Lightbox } from "./Lightbox";
 import { Markdown } from "./Markdown";
 import type { NoteFile } from "@/lib/notes";
@@ -12,6 +13,7 @@ export function NoteView({
   files,
   typeLabel,
   domainLabels,
+  hasAiKey,
 }: {
   note: {
     id: number;
@@ -26,6 +28,7 @@ export function NoteView({
   files: NoteFile[];
   typeLabel: string;
   domainLabels: string[];
+  hasAiKey: boolean;
 }) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -51,7 +54,7 @@ export function NoteView({
   }
 
   const [items, setItems] = useState(files);
-  const [lightbox, setLightbox] = useState<{ src: string; alt?: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ i: number; extra?: { src: string; alt?: string } } | null>(null);
 
   async function removeFile(fileId: number) {
     const res = await fetch(`/api/files/${fileId}?noteId=${note.id}`, { method: "DELETE" });
@@ -67,6 +70,28 @@ export function NoteView({
   const visuals = items.filter((f) =>
     ["cover", "result", "reference", "inline", "attachment"].includes(f.role)
   );
+  const slides: { src: string; alt?: string }[] = visuals.map((f) => ({ src: f.url, alt: f.orig_name }));
+  if (lightbox?.extra && !slides.some((s) => s.src === lightbox.extra!.src)) {
+    slides.push(lightbox.extra);
+  }
+  const safeIndex = lightbox ? Math.min(lightbox.i, Math.max(0, slides.length - 1)) : 0;
+  const current = lightbox && slides.length ? slides[safeIndex] : null;
+
+  function openImage(src: string, alt?: string) {
+    const base = visuals.map((f) => ({ src: f.url, alt: f.orig_name }));
+    const found = base.findIndex((s) => s.src === src);
+    if (found >= 0) setLightbox({ i: found });
+    else setLightbox({ i: base.length, extra: { src, alt } });
+  }
+
+  function step(delta: number) {
+    setLightbox((cur) => {
+      if (!cur) return cur;
+      const n = slides.length;
+      if (n < 2) return cur;
+      return { ...cur, i: (cur.i + delta + n) % n };
+    });
+  }
   const roleLabel: Record<string, string> = {
     cover: "Обложка",
     result: "Результат",
@@ -118,6 +143,17 @@ export function NoteView({
           </a>
         </p>
       ) : null}
+      <IllustrateButton
+        noteId={note.id}
+        hasKey={hasAiKey}
+        gallery={visuals}
+        defaultPrompt={[note.title, note.prompt_extract || note.body.slice(0, 400)].filter(Boolean).join("\n\n")}
+        defaultRole={visuals.length ? "result" : "cover"}
+        onDone={(file, nextRole) => {
+          setItems((prev) => mergeGeneratedFile(prev, file, nextRole));
+          router.refresh();
+        }}
+      />
       {err ? <p className="error">{err}</p> : null}
       {visuals.length > 0 && (
         <div className="gallery">
@@ -134,7 +170,7 @@ export function NoteView({
               <button
                 type="button"
                 className="gallery-open"
-                onClick={() => setLightbox({ src: f.url, alt: f.orig_name })}
+                onClick={() => openImage(f.url, f.orig_name)}
               >
                 <img src={f.url} alt={f.orig_name} />
               </button>
@@ -145,13 +181,17 @@ export function NoteView({
       )}
       <Markdown
         source={note.body}
-        onOpenImage={(src, alt) => setLightbox({ src, alt })}
+        onOpenImage={(src, alt) => openImage(src, alt)}
       />
-      {lightbox ? (
+      {current ? (
         <Lightbox
-          src={lightbox.src}
-          alt={lightbox.alt}
+          src={current.src}
+          alt={current.alt}
+          index={safeIndex}
+          total={slides.length}
           onClose={() => setLightbox(null)}
+          onPrev={slides.length > 1 ? () => step(-1) : undefined}
+          onNext={slides.length > 1 ? () => step(1) : undefined}
         />
       ) : null}
     </article>

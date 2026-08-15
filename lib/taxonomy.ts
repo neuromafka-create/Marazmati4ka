@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { getDb } from "./db";
 import { slugify } from "./markdown";
-import { DOCS_DIR } from "./paths";
+import { getBrand } from "./brand";
+import { absPath, DOCS_DIR } from "./paths";
 
 export type TaxonKind = "type" | "domain";
 
@@ -14,7 +15,7 @@ export type Taxon = {
   sort: number;
 };
 
-const SEED: { kind: TaxonKind; slug: string; label: string; sort: number }[] = [
+const SEED_MARAZ: { kind: TaxonKind; slug: string; label: string; sort: number }[] = [
   { kind: "type", slug: "prompt", label: "Промпт", sort: 0 },
   { kind: "type", slug: "guide", label: "Инструкция", sort: 1 },
   { kind: "type", slug: "catalog", label: "Подборка", sort: 2 },
@@ -32,6 +33,21 @@ const SEED: { kind: TaxonKind; slug: string; label: string; sort: number }[] = [
   { kind: "domain", slug: "business", label: "Бизнес", sort: 9 },
 ];
 
+const SEED_EMPTY: { kind: TaxonKind; slug: string; label: string; sort: number }[] = [
+  { kind: "type", slug: "note", label: "Заметка", sort: 0 },
+  { kind: "type", slug: "list", label: "Список", sort: 1 },
+  { kind: "type", slug: "idea", label: "Идея", sort: 2 },
+  { kind: "type", slug: "howto", label: "Инструкция", sort: 3 },
+  { kind: "type", slug: "link", label: "Ссылка", sort: 4 },
+  { kind: "domain", slug: "personal", label: "Личное", sort: 0 },
+  { kind: "domain", slug: "work", label: "Работа", sort: 1 },
+  { kind: "domain", slug: "home", label: "Дом", sort: 2 },
+  { kind: "domain", slug: "study", label: "Учёба", sort: 3 },
+  { kind: "domain", slug: "health", label: "Здоровье", sort: 4 },
+  { kind: "domain", slug: "money", label: "Финансы", sort: 5 },
+  { kind: "domain", slug: "misc", label: "Разное", sort: 6 },
+];
+
 function plain<T>(row: T): T {
   return row ? (JSON.parse(JSON.stringify(row)) as T) : row;
 }
@@ -40,8 +56,9 @@ export function seedTaxons() {
   const db = getDb();
   const n = (db.prepare("SELECT COUNT(*) AS c FROM taxons").get() as { c: number }).c;
   if (n > 0) return;
+  const seed = getBrand().empty ? SEED_EMPTY : SEED_MARAZ;
   const ins = db.prepare("INSERT INTO taxons (kind, slug, label, sort) VALUES (?, ?, ?, ?)");
-  for (const row of SEED) ins.run(row.kind, row.slug, row.label, row.sort);
+  for (const row of seed) ins.run(row.kind, row.slug, row.label, row.sort);
 }
 
 export function listTaxons(kind?: TaxonKind) {
@@ -79,11 +96,11 @@ export function labelMap(kind: TaxonKind) {
 }
 
 export function defaultTypeSlug() {
-  return listTaxons("type")[0]?.slug || "prompt";
+  return listTaxons("type")[0]?.slug || (getBrand().empty ? "note" : "prompt");
 }
 
 export function defaultDomainSlug() {
-  return listTaxons("domain")[0]?.slug || "image";
+  return listTaxons("domain")[0]?.slug || (getBrand().empty ? "personal" : "image");
 }
 
 export function ensureTaxon(kind: TaxonKind, slug: string, label?: string) {
@@ -189,7 +206,7 @@ function rekeyNotes(kind: TaxonKind, from: string, to: string) {
     const nextDomain = note.domain;
     if (!note.path) continue;
     const dest = path.join(DOCS_DIR, nextType, nextDomain, path.basename(note.path));
-    const src = path.join(process.cwd(), note.path);
+    const src = absPath(note.path);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (fs.existsSync(src) && src !== dest) {
       try {

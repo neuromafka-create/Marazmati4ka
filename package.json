@@ -1,11 +1,16 @@
 {
   "name": "marazmati4ka",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Личный блокнот промптов и инструкций",
+  "author": "neuromafka-create",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "next dev --port 3005",
     "build": "next build",
-    "start": "next start --port 3005"
+    "start": "next start --port 3005",
+    "desktop": "node scripts/pack-desktop.mjs",
+    "desktop:empty": "node scripts/pack-desktop.mjs --flavor=skleroznik"
   },
   "dependencies": {
     "next": "^15.5.2",
@@ -19,6 +24,8 @@
     "@types/node": "^22.18.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
+    "electron": "^36.3.2",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.9.2"
   }
 }
