@@ -1,0 +1,11 @@
+node_modules
+.next
+data/*.db
+data/*.db-*
+data/media
+_trash
+_sort
+_sort_previews.jsonl
+*.log
+.DS_Store
+Thumbs.db

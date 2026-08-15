@@ -1,0 +1,1 @@
+A surreal cosmic landscape where a giant glowing planet floats above the horizon, but its surface has the detailed texture of a school globe with continents and countries, seamlessly integrated into the scene, surrounded by nebula clouds and golden starlight, cinematic lighting, dreamlike atmosphere --v 7.0 --chaos 25 --s 500 --p 228jtw8 --raw

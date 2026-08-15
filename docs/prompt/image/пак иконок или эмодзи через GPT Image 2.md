@@ -1,0 +1,55 @@
+https://t.me/neiro_leptik/9450
+
+
+
+
+⚡️Создаём пак иконок или эмодзи через GPT Image 2 за пару кликов
+
+👩‍🎨Prompt:
+Create a complete premium 3D emoji / sticker pack sheet in a fully consistent visual style.
+
+Theme: [INSERT THEME HERE]
+
+The image should contain a large collection of icons, emojis, stickers, symbols, buttons, text labels, objects, accessories, UI elements, and decorative assets related to the theme.
+
+Style requirements:
+
+- ultra detailed 3D rendering
+- cohesive design language
+- glossy materials with realistic reflections
+- soft cinematic studio lighting
+- subtle ambient shadows
+- premium polished look
+- clean organized grid composition
+- isolated objects with equal spacing
+- high-end mobile app / Telegram sticker pack aesthetic
+- realistic textures
+- sharp focus
+- modern UI icon design
+- 4K quality
+
+Visual direction:
+
+- primary colors: [INSERT COLORS]
+- material style: [chrome / plastic / glass / metallic / neon / matte]
+- mood: [luxury / cyberpunk / cute / gaming / futuristic / minimal]
+- background: clean minimal gradient or solid color
+
+Include:
+
+- themed objects and accessories
+- symbols and interface elements
+- arrows, buttons, icons, reactions
+- decorative elements
+- text labels in matching style
+- alphabet, numbers, punctuation marks
+- custom badges and UI plates
+
+Typography:
+bold stylized 3D text matching the pack style, realistic materials, embossed details, subtle glow or reflections.
+
+The final result should look like a professional premium emoji asset pack for Telegram, Discord, Twitch, or a mobile app interface.
+
+В промпте обязательно укажите тематику, цвет и настроение ваших иконок. Замените то что в квадратных скобках
+
+😎  Нейро Лептик (https://t.me/+4FFqZqwlffYyY2Y6)

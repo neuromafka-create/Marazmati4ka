@@ -1,0 +1,1 @@
+cake slice dripping with glowing molten neon liquid, surreal hyper-realistic food photography, holographic chrome textures, cinematic rim light, glowing starburst highlights, futuristic dreamlike vibe, deep blue and purple gradient background
