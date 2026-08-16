@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Taxon } from "@/lib/taxonomy";
 import type { NoteFile } from "@/lib/notes";
 import type { Edit } from "@/lib/md-format";
-import { wrapInline, wrapLink } from "@/lib/md-format";
-import { EditorToolbar } from "./EditorToolbar";
+import { wrapInline } from "@/lib/md-format";
+import { EditorToolbar, type EditorToolbarHandle } from "./EditorToolbar";
 import { IllustrateButton } from "./IllustrateButton";
 import { Markdown } from "./Markdown";
 
@@ -95,6 +95,7 @@ export function Editor({
   const [busy, setBusy] = useState(false);
   const [pane, setPane] = useState<"write" | "preview">("write");
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const toolbarRef = useRef<EditorToolbarHandle>(null);
   const hoverRole = useRef<Role | null>(null);
   const pasting = useRef(false);
 
@@ -367,7 +368,7 @@ export function Editor({
               </button>
             </div>
           </div>
-          <EditorToolbar value={body} textareaRef={textRef} onApply={applyEdit} />
+          <EditorToolbar ref={toolbarRef} value={body} textareaRef={textRef} onApply={applyEdit} />
           <textarea
             ref={textRef}
             className={pane === "preview" ? "is-hidden" : undefined}
@@ -388,9 +389,7 @@ export function Editor({
                 applyEdit(wrapInline(body, from, to, "*"));
               } else if (key === "k") {
                 e.preventDefault();
-                const url = window.prompt("Адрес ссылки", "https://");
-                if (!url) return;
-                applyEdit(wrapLink(body, from, to, url.trim()));
+                toolbarRef.current?.startLink();
               }
             }}
             placeholder="Markdown, промпт, инструкция…"

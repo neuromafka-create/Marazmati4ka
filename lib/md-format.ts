@@ -112,13 +112,24 @@ export function insertHr(text: string, from: number): Edit {
   return { text: text.slice(0, at) + insert + text.slice(at), start: at + insert.length, end: at + insert.length };
 }
 
+export function defaultLinkUrl(selected: string) {
+  const t = selected.trim();
+  if (/^https?:\/\/\S+$/i.test(t)) return t;
+  return "https://";
+}
+
+export function canApplyLink(url: string) {
+  const href = url.trim();
+  return Boolean(href) && href !== "https://";
+}
+
 export function wrapLink(text: string, from: number, to: number, url: string): Edit {
+  const href = url.trim();
   const selected = text.slice(from, to) || "ссылка";
-  const start = from === to ? from : from;
-  const md = `[${selected}](${url})`;
+  const md = `[${selected}](${href})`;
   return {
-    text: text.slice(0, start) + md + text.slice(to),
-    start: start + 1,
-    end: start + 1 + selected.length,
+    text: text.slice(0, from) + md + text.slice(to),
+    start: from + 1,
+    end: from + 1 + selected.length,
   };
 }

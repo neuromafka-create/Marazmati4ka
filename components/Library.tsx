@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CardActions } from "./CardActions";
 import { Filters } from "./Filters";
 import { SortBar } from "./SortBar";
-import type { NoteDir, NoteSort } from "@/lib/notes";
+import { coverSrc, type NoteDir, type NoteSort } from "@/lib/notes";
 import type { Taxon } from "@/lib/taxonomy";
 
 export type CardNote = {
@@ -77,7 +77,15 @@ export function Library({
             {notes.map((n) => (
               <article key={n.id} className="card">
                 <Link href={`/n/${n.id}`} className="card-main">
-                  <div className="card-cover">{n.cover_url ? <img src={n.cover_url} alt="" /> : null}</div>
+                  <div className="card-cover">
+                    <img
+                      src={coverSrc(n.cover_url)}
+                      alt=""
+                      className={n.cover_url ? undefined : "is-fallback"}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
                   <div className="card-body">
                     <div className="card-tags">
                       <span className="tag">{typeLabels[n.type] || n.type}</span>

@@ -250,6 +250,7 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   overflow: hidden;
 }
 .card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-cover img.is-fallback { opacity: 0.88; filter: saturate(0.8); }
 .card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag {
@@ -562,6 +563,34 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   outline-offset: 1px;
 }
 .fmt-mono { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; }
+.fmt-link {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: end;
+}
+.fmt-link-field {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 220px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.fmt-link-field input {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  outline: none;
+}
+.fmt-link-field input:focus { border-color: var(--accent-dim); }
 .editor-text textarea {
   border: 0;
   border-radius: 0;
@@ -574,6 +603,7 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   background: var(--bg-elev);
 }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.model-field { display: grid; gap: 12px; }
 
 .upload-bar {
   display: flex;

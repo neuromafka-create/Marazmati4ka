@@ -16,7 +16,15 @@ function loadFlavor() {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
-    return { id: "marazmati4ka", name: "Marazmati4ka", nameEn: "Marazmati4ka", tag: "блокнот", empty: false, port: 3005 };
+    return {
+      id: "marazmati4ka",
+      name: "Marazmati4ka",
+      nameEn: "Marazmati4ka",
+      tag: "блокнот",
+      description: "Личный блокнот промптов и инструкций.",
+      empty: false,
+      port: 3005,
+    };
   }
 }
 
@@ -45,28 +53,88 @@ function copyDirSync(src, dest) {
   }
 }
 
+function writeMarker(root) {
+  const marker = path.join(root, ".initialized");
+  if (!fs.existsSync(marker)) fs.writeFileSync(marker, new Date().toISOString());
+}
+
+function hasOwnData(root) {
+  if (!root || !fs.existsSync(root)) return false;
+  if (fs.existsSync(path.join(root, ".initialized"))) return true;
+  if (fs.existsSync(path.join(root, "data", "notebook.db"))) return true;
+  const docs = path.join(root, "docs");
+  try {
+    if (fs.existsSync(docs) && fs.readdirSync(docs).length > 0) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 function ensureUserTree() {
   const root = userRoot();
-  const docs = path.join(root, "docs");
-  const data = path.join(root, "data");
-  fs.mkdirSync(data, { recursive: true });
+  fs.mkdirSync(path.join(root, "data"), { recursive: true });
+  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
   fs.mkdirSync(path.join(root, "_trash"), { recursive: true });
-  fs.mkdirSync(docs, { recursive: true });
-  if (!flavor.empty) {
-    const bundle = bundledRoot();
-    const bundledDocs = path.join(bundle, "docs");
-    if (fs.readdirSync(docs).length === 0) {
-      copyDirSync(bundledDocs, docs);
-    }
-    const seedDir = isDev ? path.join(bundle, "data") : path.join(bundle, "seed");
-    const seedDb = path.join(seedDir, "notebook.db");
-    const userDb = path.join(data, "notebook.db");
-    if (!fs.existsSync(userDb) && fs.existsSync(seedDb)) {
-      fs.copyFileSync(seedDb, userDb);
-      copyDirSync(path.join(seedDir, "media"), path.join(data, "media"));
+
+  // Updates must never touch existing notes, docs or media.
+  if (hasOwnData(root)) {
+    writeMarker(root);
+    return root;
+  }
+
+  if (!isDev) {
+    const nextToExe = path.dirname(app.getPath("exe"));
+    if (nextToExe !== root && hasOwnData(nextToExe)) {
+      copyDirSync(path.join(nextToExe, "docs"), path.join(root, "docs"));
+      copyDirSync(path.join(nextToExe, "data"), path.join(root, "data"));
+      copyDirSync(path.join(nextToExe, "_trash"), path.join(root, "_trash"));
+      writeMarker(root);
+      return root;
     }
   }
+
+  if (flavor.empty) {
+    writeMarker(root);
+    return root;
+  }
+
+  const bundle = bundledRoot();
+  const seedDir = isDev ? path.join(bundle, "data") : path.join(bundle, "seed");
+  copyDirSync(path.join(bundle, "docs"), path.join(root, "docs"));
+  const seedDb = path.join(seedDir, "notebook.db");
+  const userDb = path.join(root, "data", "notebook.db");
+  if (fs.existsSync(seedDb) && !fs.existsSync(userDb)) {
+    fs.copyFileSync(seedDb, userDb);
+    copyDirSync(path.join(seedDir, "media"), path.join(root, "data", "media"));
+  }
+  writeMarker(root);
   return root;
+}
+
+function isAppUrl(url, port) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === "data:") return true;
+    const host = u.hostname;
+    if (host !== "127.0.0.1" && host !== "localhost") return false;
+    return !port || u.port === String(port);
+  } catch {
+    return false;
+  }
+}
+
+function attachLinkGuards(contents, port) {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isAppUrl(url, port)) return { action: "allow" };
+    if (/^https?:/i.test(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
+  contents.on("will-navigate", (event, url) => {
+    if (isAppUrl(url, port)) return;
+    event.preventDefault();
+    if (/^https?:/i.test(url)) shell.openExternal(url);
+  });
 }
 
 function freePort(start) {
@@ -218,6 +286,75 @@ function stopServer() {
   }
 }
 
+const RELEASES_PAGE = "https://github.com/neuromafka-create/Marazmati4ka/releases";
+const RELEASES_API = "https://api.github.com/repos/neuromafka-create/Marazmati4ka/releases/latest";
+
+function versionParts(raw) {
+  return String(raw || "")
+    .replace(/^v/i, "")
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map((n) => Number(n) || 0);
+}
+
+function compareVersions(a, b) {
+  const left = versionParts(a);
+  const right = versionParts(b);
+  const len = Math.max(left.length, right.length);
+  for (let i = 0; i < len; i++) {
+    const d = (left[i] || 0) - (right[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+async function latestRelease() {
+  try {
+    const res = await fetch(RELEASES_API, {
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "Marazmati4ka" },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const version = String(data.tag_name || data.name || "").replace(/^v/i, "");
+    if (!version) return null;
+    const want = flavor.id === "skleroznik" ? "Skleroznik-Setup" : "Marazmati4ka-Setup";
+    const asset = Array.isArray(data.assets)
+      ? data.assets.find((a) => typeof a.name === "string" && a.name.includes(want) && a.name.endsWith(".exe"))
+      : null;
+    return {
+      version,
+      url: (asset && asset.browser_download_url) || data.html_url || RELEASES_PAGE,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function showAbout() {
+  const current = app.getVersion();
+  const newest = await latestRelease();
+  const outdated = Boolean(newest && compareVersions(newest.version, current) > 0);
+  const blurb = flavor.description || (flavor.id === "skleroznik" ? "Личный блокнот." : "Личный блокнот промптов и инструкций.");
+  const lines = [blurb, "", `Версия ${current}`, "© 2026 Мария Бортникова"];
+  if (outdated) lines.push("", `Доступна ${newest.version}.`);
+  const buttons = outdated ? ["Скачать обновление", "Закрыть"] : ["Закрыть"];
+  const parent = win && !win.isDestroyed() ? win : undefined;
+  const result = await dialog.showMessageBox(parent, {
+    type: "info",
+    title: "О программе",
+    message: flavor.name,
+    detail: lines.join("\n"),
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+    noLink: true,
+  });
+  if (outdated && result.response === 0) {
+    shell.openExternal(newest.url || RELEASES_PAGE);
+  }
+}
+
 function buildMenu(root) {
   const template = [
     {
@@ -226,6 +363,13 @@ function buildMenu(root) {
         {
           label: "Папка данных",
           click: () => shell.openPath(root),
+        },
+        {
+          label: "Назад",
+          accelerator: "Alt+Left",
+          click: () => {
+            if (win?.webContents.canGoBack()) win.webContents.goBack();
+          },
         },
         { type: "separator" },
         { role: "quit", label: "Выход" },
@@ -253,6 +397,10 @@ function buildMenu(root) {
         { role: "zoomOut", label: "Мельче" },
         { role: "resetZoom", label: "Сбросить масштаб" },
       ],
+    },
+    {
+      label: "Справка",
+      submenu: [{ label: "О программе", click: () => void showAbout() }],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -289,6 +437,7 @@ async function createWindow() {
 
   try {
     const port = await freePort(preferredPort());
+    attachLinkGuards(win.webContents, port);
     startServer(port, root);
     await waitHttp(`http://127.0.0.1:${port}/`, 90000);
     if (!win.isDestroyed()) await win.loadURL(`http://127.0.0.1:${port}/`);

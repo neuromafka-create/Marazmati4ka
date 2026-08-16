@@ -39,6 +39,12 @@ export type NoteFile = {
 export type NoteSort = "title" | "created" | "updated";
 export type NoteDir = "asc" | "desc";
 
+export const FALLBACK_COVER = "/cover-placeholder.jpg";
+
+export function coverSrc(url?: string | null) {
+  return url || FALLBACK_COVER;
+}
+
 export function parseSort(raw?: string | null): NoteSort {
   return raw === "title" || raw === "created" || raw === "updated" ? raw : "updated";
 }

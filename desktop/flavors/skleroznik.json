@@ -3,6 +3,7 @@
   "name": "Склерозник",
   "nameEn": "Skleroznik",
   "tag": "блокнот",
+  "description": "Личный блокнот.",
   "empty": true,
   "port": 3007
 }

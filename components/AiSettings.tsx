@@ -6,6 +6,17 @@ import { CHAT_MODELS, IMAGE_MODELS } from "@/lib/hubris-models";
 const HUBRIS_DEFAULT_BASE = "https://api.hubris.pw/v1";
 const HUBRIS_DEFAULT_CHAT = "anthropic/claude-haiku-4.5";
 const HUBRIS_DEFAULT_IMAGE = "google/gemini-2.5-flash-image";
+const HUBRIS_REF = "https://hubris.pw/r/25714440";
+const HUBRIS_REF_CODE = "25714440";
+
+function splitModel(value: string, presets: { id: string }[], fallback: string) {
+  const known = presets.some((m) => m.id === value);
+  return { selected: known ? value : fallback, custom: known ? "" : value };
+}
+
+function pickModel(custom: string, selected: string) {
+  return custom.trim() || selected;
+}
 
 type Public = {
   hasKey: boolean;
@@ -16,20 +27,28 @@ type Public = {
 };
 
 export function AiSettings({ initial }: { initial: Public }) {
+  const chatInit = splitModel(initial.chatModel || HUBRIS_DEFAULT_CHAT, CHAT_MODELS, HUBRIS_DEFAULT_CHAT);
+  const imageInit = splitModel(initial.imageModel || HUBRIS_DEFAULT_IMAGE, IMAGE_MODELS, HUBRIS_DEFAULT_IMAGE);
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl || HUBRIS_DEFAULT_BASE);
-  const [chatModel, setChatModel] = useState(initial.chatModel || HUBRIS_DEFAULT_CHAT);
-  const [imageModel, setImageModel] = useState(initial.imageModel || HUBRIS_DEFAULT_IMAGE);
+  const [chatModel, setChatModel] = useState(chatInit.selected);
+  const [imageModel, setImageModel] = useState(imageInit.selected);
+  const [customChatModel, setCustomChatModel] = useState(chatInit.custom);
+  const [customImageModel, setCustomImageModel] = useState(imageInit.custom);
   const [preview, setPreview] = useState(initial);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    const nextChat = splitModel(initial.chatModel || HUBRIS_DEFAULT_CHAT, CHAT_MODELS, HUBRIS_DEFAULT_CHAT);
+    const nextImage = splitModel(initial.imageModel || HUBRIS_DEFAULT_IMAGE, IMAGE_MODELS, HUBRIS_DEFAULT_IMAGE);
     setPreview(initial);
     setBaseUrl(initial.baseUrl || HUBRIS_DEFAULT_BASE);
-    setChatModel(initial.chatModel || HUBRIS_DEFAULT_CHAT);
-    setImageModel(initial.imageModel || HUBRIS_DEFAULT_IMAGE);
+    setChatModel(nextChat.selected);
+    setImageModel(nextImage.selected);
+    setCustomChatModel(nextChat.custom);
+    setCustomImageModel(nextImage.custom);
   }, [initial]);
 
   async function save(extra: Record<string, unknown> = {}) {
@@ -42,8 +61,8 @@ export function AiSettings({ initial }: { initial: Public }) {
       body: JSON.stringify({
         apiKey: apiKey.trim() || undefined,
         baseUrl,
-        chatModel,
-        imageModel,
+        chatModel: pickModel(customChatModel, chatModel),
+        imageModel: pickModel(customImageModel, imageModel),
         ...extra,
       }),
     });
@@ -90,28 +109,28 @@ export function AiSettings({ initial }: { initial: Public }) {
       <h2>Нейросеть</h2>
       <p className="settings-lead" style={{ marginBottom: 16 }}>
         Подключение через{" "}
-        <a href="https://hubris.pw/docs/quickstart" target="_blank" rel="noreferrer">
+        <a href={HUBRIS_REF} target="_blank" rel="noreferrer">
           Hubris
         </a>
         : один OpenAI-совместимый URL и ключ. Нужно, например, чтобы нарисовать иллюстрацию к заметке.
       </p>
       <ol className="settings-steps">
         <li>
-          <a href="https://hubris.pw/sign-in" target="_blank" rel="noreferrer">
+          <a href={HUBRIS_REF} target="_blank" rel="noreferrer">
             Регистрация
           </a>{" "}
-          по email
+          по email. Код для ввода вручную: <code>{HUBRIS_REF_CODE}</code>
         </li>
         <li>
           Создать ключ в{" "}
-          <a href="https://hubris.pw/keys" target="_blank" rel="noreferrer">
+          <a href={HUBRIS_REF} target="_blank" rel="noreferrer">
             API-ключи
           </a>{" "}
           — показывается один раз, формат <code>sk-gw-…</code>
         </li>
         <li>
           Пополнить баланс в{" "}
-          <a href="https://hubris.pw/billing" target="_blank" rel="noreferrer">
+          <a href={HUBRIS_REF} target="_blank" rel="noreferrer">
             Биллинге
           </a>{" "}
           (от 300 ₽ через СБП)
@@ -133,33 +152,52 @@ export function AiSettings({ initial }: { initial: Public }) {
           <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={HUBRIS_DEFAULT_BASE} />
         </label>
         <div className="row-2">
-          <label>
-            Модель для текста
-            <select value={chatModel} onChange={(e) => setChatModel(e.target.value)}>
-              {CHAT_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-              {!CHAT_MODELS.some((m) => m.id === chatModel) && chatModel ? (
-                <option value={chatModel}>{chatModel}</option>
-              ) : null}
-            </select>
-          </label>
-          <label>
-            Модель для иллюстраций
-            <select value={imageModel} onChange={(e) => setImageModel(e.target.value)}>
-              {IMAGE_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-              {!IMAGE_MODELS.some((m) => m.id === imageModel) && imageModel ? (
-                <option value={imageModel}>{imageModel}</option>
-              ) : null}
-            </select>
-          </label>
+          <div className="model-field">
+            <label>
+              Модель для текста
+              <select value={chatModel} onChange={(e) => setChatModel(e.target.value)}>
+                {CHAT_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Своя модель
+              <input
+                value={customChatModel}
+                onChange={(e) => setCustomChatModel(e.target.value)}
+                placeholder="provider/model"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          <div className="model-field">
+            <label>
+              Модель для иллюстраций
+              <select value={imageModel} onChange={(e) => setImageModel(e.target.value)}>
+                {IMAGE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Своя модель
+              <input
+                value={customImageModel}
+                onChange={(e) => setCustomImageModel(e.target.value)}
+                placeholder="provider/model"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+          </div>
         </div>
+        <p className="hint">Непустое поле своей модели важнее списка.</p>
         <p className="hint">
           {preview.hasKey
             ? `Ключ сохранён: ${preview.keyPreview}. Пустое поле при сохранении его не затирает.`

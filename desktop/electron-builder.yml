@@ -1,6 +1,6 @@
 appId: pw.marazmati4ka.app
 productName: Marazmati4ka
-copyright: Copyright © 2026
+copyright: Copyright © 2026 Мария Бортникова
 asar: true
 directories:
   output: dist-desktop

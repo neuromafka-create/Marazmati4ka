@@ -1,18 +1,26 @@
 "use client";
 
-import type { RefObject } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, type RefObject } from "react";
 import type { Edit } from "@/lib/md-format";
-import { insertHr, prefixLines, setHeading, wrapFence, wrapInline, wrapLink } from "@/lib/md-format";
+import { canApplyLink, defaultLinkUrl, insertHr, prefixLines, setHeading, wrapFence, wrapInline, wrapLink } from "@/lib/md-format";
 
-export function EditorToolbar({
-  value,
-  textareaRef,
-  onApply,
-}: {
-  value: string;
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
-  onApply: (next: Edit) => void;
-}) {
+export type EditorToolbarHandle = {
+  startLink: () => void;
+};
+
+export const EditorToolbar = forwardRef<
+  EditorToolbarHandle,
+  {
+    value: string;
+    textareaRef: RefObject<HTMLTextAreaElement | null>;
+    onApply: (next: Edit) => void;
+  }
+>(function EditorToolbar({ value, textareaRef, onApply }, ref) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("https://");
+  const rangeRef = useRef({ from: 0, to: 0 });
+  const urlRef = useRef<HTMLInputElement>(null);
+
   function run(fn: (text: string, from: number, to: number) => Edit) {
     const el = textareaRef.current;
     const from = el?.selectionStart ?? value.length;
@@ -20,11 +28,32 @@ export function EditorToolbar({
     onApply(fn(value, from, to));
   }
 
-  function link() {
-    const url = window.prompt("Адрес ссылки", "https://");
-    if (!url) return;
-    run((text, from, to) => wrapLink(text, from, to, url.trim()));
+  function startLink() {
+    const el = textareaRef.current;
+    const from = el?.selectionStart ?? value.length;
+    const to = el?.selectionEnd ?? value.length;
+    rangeRef.current = { from, to };
+    setLinkUrl(defaultLinkUrl(value.slice(from, to)));
+    setLinkOpen(true);
+    requestAnimationFrame(() => {
+      urlRef.current?.focus();
+      urlRef.current?.select();
+    });
   }
+
+  function applyLink() {
+    if (!canApplyLink(linkUrl)) return;
+    const { from, to } = rangeRef.current;
+    onApply(wrapLink(value, from, to, linkUrl));
+    setLinkOpen(false);
+  }
+
+  function cancelLink() {
+    setLinkOpen(false);
+    textareaRef.current?.focus();
+  }
+
+  useImperativeHandle(ref, () => ({ startLink }));
 
   function holdSelection(e: React.MouseEvent) {
     e.preventDefault();
@@ -46,7 +75,7 @@ export function EditorToolbar({
         <button type="button" className="fmt-btn fmt-mono" title="Код в строке" aria-label="Код в строке" onMouseDown={holdSelection} onClick={() => run((t, a, b) => wrapInline(t, a, b, "`"))}>
           {"</>"}
         </button>
-        <button type="button" className="fmt-btn" title="Ссылка (Ctrl+K)" aria-label="Ссылка" onMouseDown={holdSelection} onClick={link}>
+        <button type="button" className="fmt-btn" title="Ссылка (Ctrl+K)" aria-label="Ссылка" onMouseDown={holdSelection} onClick={startLink}>
           Ссылка
         </button>
       </div>
@@ -83,6 +112,39 @@ export function EditorToolbar({
           ―
         </button>
       </div>
+      {linkOpen ? (
+        <form
+          className="fmt-link"
+          onSubmit={(e) => {
+            e.preventDefault();
+            applyLink();
+          }}
+        >
+          <label className="fmt-link-field">
+            Адрес ссылки
+            <input
+              ref={urlRef}
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelLink();
+                }
+              }}
+              placeholder="https://"
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </label>
+          <button type="submit" className="fmt-btn">
+            Вставить
+          </button>
+          <button type="button" className="fmt-btn" onClick={cancelLink}>
+            Отмена
+          </button>
+        </form>
+      ) : null}
     </div>
   );
-}
+});

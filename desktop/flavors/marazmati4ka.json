@@ -3,6 +3,7 @@
   "name": "Marazmati4ka",
   "nameEn": "Marazmati4ka",
   "tag": "блокнот",
+  "description": "Личный блокнот промптов и инструкций.",
   "empty": false,
   "port": 3005
 }

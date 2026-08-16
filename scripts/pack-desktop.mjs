@@ -82,10 +82,6 @@ if (flavor === "skleroznik") {
   const db = path.join(root, "data", "notebook.db");
   if (fs.existsSync(db)) {
     fs.copyFileSync(db, path.join(seed, "notebook.db"));
-    for (const extra of ["notebook.db-wal", "notebook.db-shm"]) {
-      const p = path.join(root, "data", extra);
-      if (fs.existsSync(p)) fs.copyFileSync(p, path.join(seed, extra));
-    }
     copyDir(path.join(root, "data", "media"), path.join(seed, "media"));
     console.log("   seed: текущая база и media");
   } else {
