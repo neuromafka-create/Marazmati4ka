@@ -209,6 +209,52 @@ function serverCwd() {
   return path.join(process.resourcesPath, "notebook");
 }
 
+function decodePathCandidates(buf) {
+  const out = [];
+  const push = (s) => {
+    const line = String(s || "")
+      .replace(/^\uFEFF/, "")
+      .split(/\r?\n/)[0]
+      .trim();
+    if (line) out.push(line);
+  };
+  const win1251 = (bytes) => {
+    try {
+      return new TextDecoder("windows-1251").decode(bytes);
+    } catch {
+      return bytes.toString("latin1");
+    }
+  };
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    push(buf.toString("utf16le"));
+    push(win1251(buf.subarray(2)));
+    push(buf.subarray(2).toString("utf8"));
+  }
+  push(buf.toString("utf8"));
+  push(buf.toString("utf16le"));
+  push(win1251(buf));
+  return [...new Set(out)];
+}
+
+function readSourceFolder() {
+  const candidates = [
+    path.join(app.getPath("userData"), "source-folder.txt"),
+    path.join(path.dirname(app.getPath("exe")), "source-folder.txt"),
+  ];
+  for (const file of candidates) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const buf = fs.readFileSync(file);
+      for (const raw of decodePathCandidates(buf)) {
+        if (fs.existsSync(raw) && fs.statSync(raw).isDirectory()) return raw;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return "";
+}
+
 function startServer(port, root) {
   shuttingDown = false;
   const cwd = serverCwd();
@@ -216,6 +262,7 @@ function startServer(port, root) {
   const args = isDev
     ? ["node_modules/next/dist/bin/next", "start", "--port", String(port), "--hostname", "127.0.0.1"]
     : ["server.js"];
+  const seedDir = flavor.empty ? readSourceFolder() : "";
   const env = {
     ...process.env,
     PORT: String(port),
@@ -224,10 +271,11 @@ function startServer(port, root) {
     MARAZ_FLAVOR: flavor.id || "marazmati4ka",
     NODE_ENV: "production",
   };
+  if (seedDir) env.MARAZ_SEED_DIR = seedDir;
   try {
     fs.writeFileSync(
       logFile(),
-      `start ${new Date().toISOString()}\nnode=${node}\ncwd=${cwd}\nargs=${args.join(" ")}\nroot=${root}\n`
+      `start ${new Date().toISOString()}\nnode=${node}\ncwd=${cwd}\nargs=${args.join(" ")}\nroot=${root}\nseed=${seedDir || "-"}\n`
     );
   } catch {
     /* ignore */

@@ -82,6 +82,11 @@ export function Editor({
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
   const [type, setType] = useState(initial.type);
+  const [typeList, setTypeList] = useState(types);
+  const [domainList, setDomainList] = useState(domains);
+  const [addingKind, setAddingKind] = useState<null | "type" | "domain">(null);
+  const [newTaxonLabel, setNewTaxonLabel] = useState("");
+  const [taxonBusy, setTaxonBusy] = useState(false);
   const [selectedDomains, setSelectedDomains] = useState<string[]>(
     initial.domains?.length ? initial.domains : initial.domain ? [initial.domain] : []
   );
@@ -98,6 +103,49 @@ export function Editor({
   const toolbarRef = useRef<EditorToolbarHandle>(null);
   const hoverRole = useRef<Role | null>(null);
   const pasting = useRef(false);
+  const newTaxonRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTypeList(types);
+    setDomainList(domains);
+  }, [types, domains]);
+
+  function startAddTaxon(kind: "type" | "domain") {
+    setAddingKind(kind);
+    setNewTaxonLabel("");
+    requestAnimationFrame(() => newTaxonRef.current?.focus());
+  }
+
+  async function createTaxonInline() {
+    const kind = addingKind;
+    const label = newTaxonLabel.trim();
+    if (!kind || !label || taxonBusy) return;
+    setErr("");
+    setTaxonBusy(true);
+    const res = await fetch("/api/taxons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, label }),
+    });
+    const data = await res.json();
+    setTaxonBusy(false);
+    if (!res.ok) {
+      setErr(data.error || "Не добавилось");
+      return;
+    }
+    const taxon = data.taxon as Taxon;
+    if (kind === "type") {
+      setTypeList((list) => [...list, taxon]);
+      setType(taxon.slug);
+    } else {
+      setDomainList((list) => [...list, taxon]);
+      setSelectedDomains((prev) => (prev.includes(taxon.slug) ? prev : [...prev, taxon.slug]));
+      if (taxon.slug === "image" && role === "attachment") setRole("result");
+    }
+    setNewTaxonLabel("");
+    setAddingKind(null);
+    router.refresh();
+  }
 
   function applyEdit(next: Edit) {
     setBody(next.text);
@@ -246,44 +294,103 @@ export function Editor({
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Как назвать" />
         </label>
         <div className="row-2">
-          <label>
-            Тип
-            <select value={type} onChange={(e) => setType(e.target.value)}>
-              {types.map((t) => (
-                <option key={t.slug} value={t.slug}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Области
-            <div className="chip-list">
-              {domains.map((d) => {
-                const on = selectedDomains.includes(d.slug);
-                return (
-                  <button
-                    key={d.slug}
-                    type="button"
-                    className={`chip ${on ? "on" : ""}`}
-                    onClick={() => {
-                      setSelectedDomains((prev) => {
-                        if (on) {
-                          if (prev.length === 1) return prev;
-                          return prev.filter((x) => x !== d.slug);
-                        }
-                        const next = [...prev, d.slug];
-                        if (d.slug === "image" && role === "attachment") setRole("result");
-                        return next;
-                      });
-                    }}
-                  >
-                    {d.label}
+          <div>
+            <label>
+              Тип
+              <select value={type} onChange={(e) => setType(e.target.value)}>
+                {typeList.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {addingKind === "type" ? (
+              <span className="taxon-quick">
+                <input
+                  ref={newTaxonRef}
+                  value={newTaxonLabel}
+                  onChange={(e) => setNewTaxonLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void createTaxonInline();
+                    }
+                    if (e.key === "Escape") setAddingKind(null);
+                  }}
+                  placeholder="Название типа"
+                />
+                <button className="btn" type="button" disabled={taxonBusy || !newTaxonLabel.trim()} onClick={() => void createTaxonInline()}>
+                  {taxonBusy ? "…" : "Добавить"}
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setAddingKind(null)}>
+                  Отмена
+                </button>
+              </span>
+            ) : (
+              <button className="btn ghost taxon-quick-open" type="button" onClick={() => startAddTaxon("type")}>
+                Новый тип
+              </button>
+            )}
+          </div>
+          <div>
+            <label>
+              Области
+              <div className="chip-list">
+                {domainList.map((d) => {
+                  const on = selectedDomains.includes(d.slug);
+                  return (
+                    <button
+                      key={d.slug}
+                      type="button"
+                      className={`chip ${on ? "on" : ""}`}
+                      onClick={() => {
+                        setSelectedDomains((prev) => {
+                          if (on) {
+                            if (prev.length === 1) return prev;
+                            return prev.filter((x) => x !== d.slug);
+                          }
+                          const next = [...prev, d.slug];
+                          if (d.slug === "image" && role === "attachment") setRole("result");
+                          return next;
+                        });
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+                {addingKind !== "domain" ? (
+                  <button className="chip chip-add" type="button" onClick={() => startAddTaxon("domain")}>
+                    + область
                   </button>
-                );
-              })}
-            </div>
-          </label>
+                ) : null}
+              </div>
+            </label>
+            {addingKind === "domain" ? (
+              <span className="taxon-quick">
+                <input
+                  ref={newTaxonRef}
+                  value={newTaxonLabel}
+                  onChange={(e) => setNewTaxonLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void createTaxonInline();
+                    }
+                    if (e.key === "Escape") setAddingKind(null);
+                  }}
+                  placeholder="Название области"
+                />
+                <button className="btn" type="button" disabled={taxonBusy || !newTaxonLabel.trim()} onClick={() => void createTaxonInline()}>
+                  {taxonBusy ? "…" : "Добавить"}
+                </button>
+                <button className="btn ghost" type="button" onClick={() => setAddingKind(null)}>
+                  Отмена
+                </button>
+              </span>
+            ) : null}
+          </div>
         </div>
         <label>
           Источник

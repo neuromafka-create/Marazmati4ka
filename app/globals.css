@@ -153,6 +153,22 @@ html[data-theme="light"] .btn.primary { color: #f7f5ef; }
   color: var(--text);
   border-color: var(--accent-dim);
 }
+.chip-add { border-style: dashed; }
+.taxon-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.taxon-quick input {
+  flex: 1;
+  min-width: 140px;
+}
+.taxon-quick-open {
+  margin-top: 8px;
+  justify-self: start;
+}
 
 .main { padding: 22px 26px 64px; min-width: 0; }
 

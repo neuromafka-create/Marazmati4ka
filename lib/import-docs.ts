@@ -14,8 +14,11 @@ import {
   extractPrompt,
 } from "./markdown";
 import { setNoteDomains } from "./notes";
-import { ensureTaxon } from "./taxonomy";
+import { defaultDomainSlug, defaultTypeSlug, ensureTaxon } from "./taxonomy";
 import { DOCS_DIR, ROOT } from "./paths";
+import { planSeedCopies } from "./import-plan";
+
+export { classifyImportPath, planSeedCopies } from "./import-plan";
 
 function walkMd(dir: string, acc: string[] = []) {
   if (!fs.existsSync(dir)) return acc;
@@ -125,4 +128,37 @@ export function importDocs() {
   }
 
   return { scanned: files.length, created, skipped, conflicts };
+}
+
+function uniqueDest(dir: string, filename: string, used: Set<string>) {
+  const ext = path.extname(filename);
+  const base = path.basename(filename, ext);
+  let dest = path.join(dir, filename);
+  let n = 2;
+  while (used.has(dest) || fs.existsSync(dest)) {
+    dest = path.join(dir, `${base}-${n++}${ext}`);
+  }
+  used.add(dest);
+  return dest;
+}
+
+/** Copy loose notes from a user folder into docs/<type>/<domain>/ so importDocs can pick them up. */
+export function seedDocsFromFolder(sourceDir: string, destDocs = DOCS_DIR) {
+  const plans = planSeedCopies(sourceDir, defaultTypeSlug(), defaultDomainSlug());
+  const used = new Set<string>();
+  let copied = 0;
+  for (const plan of plans) {
+    ensureTaxon("type", plan.type, plan.type);
+    ensureTaxon("domain", plan.domain, plan.domain);
+    const destDir = path.join(destDocs, plan.type, plan.domain);
+    fs.mkdirSync(destDir, { recursive: true });
+    const dest = uniqueDest(destDir, plan.destName, used);
+    try {
+      fs.copyFileSync(plan.from, dest);
+      copied += 1;
+    } catch {
+      /* skip unreadable */
+    }
+  }
+  return { scanned: plans.length, copied };
 }
