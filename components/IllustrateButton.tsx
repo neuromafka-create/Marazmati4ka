@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { NoteFile } from "@/lib/notes";
+import { isDocFile, isVideoFile } from "./NoteMedia";
 
 type Role = "cover" | "result" | "reference" | "inline" | "attachment";
 
@@ -121,7 +122,9 @@ export function IllustrateButton({
     );
   }
 
-  const unusedGallery = gallery.filter((f) => !refs.some((r) => r.fileId === f.file_id));
+  const unusedGallery = gallery.filter(
+    (f) => !isVideoFile(f.mime) && !isDocFile(f.mime) && !refs.some((r) => r.fileId === f.file_id)
+  );
 
   return (
     <div

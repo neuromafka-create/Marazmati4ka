@@ -316,6 +316,13 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin: 22px 0; }
 .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; position: relative; }
 .gallery img { width: 100%; display: block; }
+.gallery figure.is-video { grid-column: 1 / -1; }
+.gallery video {
+  width: 100%;
+  max-height: 480px;
+  display: block;
+  background: #111;
+}
 .gallery-open {
   display: block;
   width: 100%;
@@ -353,6 +360,7 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   position: absolute;
   top: 6px;
   right: 6px;
+  z-index: 2;
   width: 26px;
   height: 26px;
   border: 0;
@@ -632,6 +640,27 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   background: var(--surface);
 }
 .upload-bar .hint { color: var(--muted); font-size: 13px; }
+
+.attach-docs { display: grid; gap: 8px; margin-top: 8px; }
+.attach-docs-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.file-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.file-row a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent);
+}
 
 .error { color: var(--danger); font-size: 13px; }
 

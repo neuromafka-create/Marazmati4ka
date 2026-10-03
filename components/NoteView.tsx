@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { libraryReturnHref } from "@/lib/library-return";
+import { LibraryLink } from "./LibraryLink";
 import { IllustrateButton, mergeGeneratedFile } from "./IllustrateButton";
 import { Lightbox } from "./Lightbox";
 import { Markdown } from "./Markdown";
+import { isDocFile, isVideoFile, NoteMedia } from "./NoteMedia";
 import type { NoteFile } from "@/lib/notes";
 
 export function NoteView({
@@ -49,7 +52,7 @@ export function NoteView({
       setErr(data.error || "Не удалось удалить");
       return;
     }
-    router.push("/");
+    router.push(libraryReturnHref());
     router.refresh();
   }
 
@@ -60,17 +63,20 @@ export function NoteView({
     const res = await fetch(`/api/files/${fileId}?noteId=${note.id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setErr(data.error || "Не удалось убрать картинку");
+      setErr(data.error || "Не удалось убрать файл");
       return;
     }
     setItems((prev) => prev.filter((f) => f.file_id !== fileId));
     router.refresh();
   }
 
-  const visuals = items.filter((f) =>
-    ["cover", "result", "reference", "inline", "attachment"].includes(f.role)
+  const docs = items.filter((f) => isDocFile(f.mime));
+  const visuals = items.filter(
+    (f) =>
+      !isDocFile(f.mime) && ["cover", "result", "reference", "inline", "attachment"].includes(f.role)
   );
-  const slides: { src: string; alt?: string }[] = visuals.map((f) => ({ src: f.url, alt: f.orig_name }));
+  const pictures = visuals.filter((f) => !isVideoFile(f.mime));
+  const slides: { src: string; alt?: string }[] = pictures.map((f) => ({ src: f.url, alt: f.orig_name }));
   if (lightbox?.extra && !slides.some((s) => s.src === lightbox.extra!.src)) {
     slides.push(lightbox.extra);
   }
@@ -78,7 +84,7 @@ export function NoteView({
   const current = lightbox && slides.length ? slides[safeIndex] : null;
 
   function openImage(src: string, alt?: string) {
-    const base = visuals.map((f) => ({ src: f.url, alt: f.orig_name }));
+    const base = pictures.map((f) => ({ src: f.url, alt: f.orig_name }));
     const found = base.findIndex((s) => s.src === src);
     if (found >= 0) setLightbox({ i: found });
     else setLightbox({ i: base.length, extra: { src, alt } });
@@ -103,7 +109,7 @@ export function NoteView({
   return (
     <article className="note-page">
       <div className="crumbs">
-        <Link href="/">Библиотека</Link>
+        <LibraryLink>Библиотека</LibraryLink>
         <span>/</span>
         <span>
           {typeLabel} · {domainLabels.join(" · ")}
@@ -157,32 +163,56 @@ export function NoteView({
       {err ? <p className="error">{err}</p> : null}
       {visuals.length > 0 && (
         <div className="gallery">
-          {visuals.map((f) => (
-            <figure key={f.id}>
-              <button
-                type="button"
-                className="gallery-x"
-                title="Убрать картинку"
-                onClick={() => void removeFile(f.file_id)}
-              >
-                ×
-              </button>
-              <button
-                type="button"
-                className="gallery-open"
-                onClick={() => openImage(f.url, f.orig_name)}
-              >
-                <img src={f.url} alt={f.orig_name} />
-              </button>
-              <figcaption>{roleLabel[f.role] || f.role}</figcaption>
-            </figure>
-          ))}
+          {visuals.map((f) => {
+            const video = isVideoFile(f.mime);
+            return (
+              <figure key={f.id} className={video ? "is-video" : undefined}>
+                <button
+                  type="button"
+                  className="gallery-x"
+                  title={video ? "Убрать видео" : "Убрать картинку"}
+                  onClick={() => void removeFile(f.file_id)}
+                >
+                  ×
+                </button>
+                {video ? (
+                  <NoteMedia mime={f.mime} url={f.url} name={f.orig_name} />
+                ) : (
+                  <button
+                    type="button"
+                    className="gallery-open"
+                    onClick={() => openImage(f.url, f.orig_name)}
+                  >
+                    <img src={f.url} alt={f.orig_name} />
+                  </button>
+                )}
+                <figcaption>{roleLabel[f.role] || f.role}</figcaption>
+              </figure>
+            );
+          })}
         </div>
       )}
       <Markdown
         source={note.body}
         onOpenImage={(src, alt) => openImage(src, alt)}
       />
+      {docs.length > 0 ? (
+        <div className="attach-docs">
+          <span className="fmt-heading">Файлы</span>
+          <ul className="file-list">
+            {docs.map((f) => (
+              <li key={f.id} className="file-row">
+                <a href={f.url} target="_blank" rel="noreferrer">
+                  {f.orig_name || "файл.pdf"}
+                </a>
+                <button type="button" className="btn ghost" onClick={() => void removeFile(f.file_id)}>
+                  Убрать
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {current ? (
         <Lightbox
           src={current.src}

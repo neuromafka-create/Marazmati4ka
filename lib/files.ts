@@ -4,31 +4,29 @@ import path from "node:path";
 import { getDb } from "./db";
 import { absPath, noteMediaDir } from "./paths";
 import { nowIso } from "./markdown";
+import {
+  ALLOWED,
+  DOC_ALLOWED,
+  MAX_BYTES,
+  MAX_DOC_BYTES,
+  MAX_VIDEO_BYTES,
+  VIDEO_ALLOWED,
+  isDocMime,
+  isVideoMime,
+  sniffMime,
+} from "./media-kind";
 
-export const ALLOWED: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
+export {
+  ALLOWED,
+  DOC_ALLOWED,
+  MAX_BYTES,
+  MAX_DOC_BYTES,
+  MAX_VIDEO_BYTES,
+  VIDEO_ALLOWED,
+  isDocMime,
+  isVideoMime,
+  sniffMime,
 };
-
-export function sniffMime(buf: Buffer, fallback = ""): string {
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
-  if (buf.length >= 6 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";
-  if (
-    buf.length >= 12 &&
-    buf.toString("ascii", 0, 4) === "RIFF" &&
-    buf.toString("ascii", 8, 12) === "WEBP"
-  ) {
-    return "image/webp";
-  }
-  if (fallback.startsWith("image/")) return fallback;
-  return "";
-}
-
-export const MAX_BYTES = 15 * 1024 * 1024;
 
 export type FileRole = "cover" | "result" | "reference" | "inline" | "attachment";
 
@@ -40,9 +38,22 @@ export function attachFile(opts: {
   role: FileRole;
 }) {
   const mime = sniffMime(opts.buffer, opts.mime);
-  const ext = ALLOWED[mime];
-  if (!ext) throw new Error("Можно jpeg, png, webp или gif");
-  if (opts.buffer.length > MAX_BYTES) throw new Error("Файл больше 15 МБ");
+  const ext = ALLOWED[mime] || VIDEO_ALLOWED[mime] || DOC_ALLOWED[mime];
+  if (!ext) {
+    const name = opts.origName || "";
+    if (/\.mkv$/i.test(name) || opts.mime === "video/x-matroska") {
+      throw new Error("MKV браузер не проигрывает. Нужен mp4, webm или mov");
+    }
+    throw new Error("Можно jpeg, png, webp, gif, видео mp4, webm, mov или PDF");
+  }
+  const video = isVideoMime(mime);
+  const doc = isDocMime(mime);
+  if ((video || doc) && opts.role === "cover") {
+    throw new Error(video ? "Видео нельзя сделать обложкой" : "PDF нельзя сделать обложкой");
+  }
+  if (video && opts.buffer.length > MAX_VIDEO_BYTES) throw new Error("Видео больше 500 МБ");
+  if (doc && opts.buffer.length > MAX_DOC_BYTES) throw new Error("PDF больше 50 МБ");
+  if (!video && !doc && opts.buffer.length > MAX_BYTES) throw new Error("Файл больше 15 МБ");
 
   const db = getDb();
   const note = db.prepare("SELECT id, cover_file_id FROM notes WHERE id = ?").get(opts.noteId) as
@@ -57,7 +68,14 @@ export function attachFile(opts: {
       `INSERT INTO files (orig_name, mime, ext, bytes, path, preview_path, hash, created_at)
        VALUES (?, ?, ?, ?, '', NULL, ?, ?)`
     )
-    .run(opts.origName || `image.${ext}`, mime, ext, opts.buffer.length, hash, ts);
+    .run(
+      opts.origName || `${doc ? "file" : video ? "video" : "image"}.${ext}`,
+      mime,
+      ext,
+      opts.buffer.length,
+      hash,
+      ts
+    );
   const fileId = Number(info.lastInsertRowid);
 
   const dir = noteMediaDir(opts.noteId);
@@ -86,7 +104,7 @@ export function attachFile(opts: {
     sort
   );
 
-  if (!note.cover_file_id && opts.role !== "cover") {
+  if (!video && !doc && !note.cover_file_id && opts.role !== "cover") {
     db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ? AND cover_file_id IS NULL").run(
       fileId,
       opts.noteId
@@ -105,6 +123,9 @@ export function setFileRole(noteId: number, fileId: number, role: FileRole) {
   if (link.role === role) return { id: fileId, role };
 
   if (role === "cover") {
+    const row = getFileRow(fileId);
+    if (row && isVideoMime(row.mime)) throw new Error("Видео нельзя сделать обложкой");
+    if (row && isDocMime(row.mime)) throw new Error("PDF нельзя сделать обложкой");
     setCover(noteId, fileId);
     return { id: fileId, role };
   }
@@ -126,15 +147,39 @@ export function setFileRole(noteId: number, fileId: number, role: FileRole) {
     | { cover_file_id: number | null }
     | undefined;
   if (note && Number(note.cover_file_id) === fileId) {
-    const next = db
-      .prepare(
-        "SELECT file_id FROM note_files WHERE note_id = ? AND file_id != ? ORDER BY CASE role WHEN 'cover' THEN 0 ELSE 1 END, sort, id LIMIT 1"
-      )
-      .get(noteId, fileId) as { file_id: number } | undefined;
-    db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(next ? next.file_id : null, noteId);
+    const next = nextImageFileId(noteId, fileId);
+    db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(next, noteId);
   }
 
   return { id: fileId, role };
+}
+
+function nextImageFileId(noteId: number, exceptFileId?: number) {
+  const db = getDb();
+  const row = (
+    exceptFileId == null
+      ? db
+          .prepare(
+            `SELECT nf.file_id AS file_id
+             FROM note_files nf
+             JOIN files f ON f.id = nf.file_id
+             WHERE nf.note_id = ? AND f.mime LIKE 'image/%'
+             ORDER BY CASE nf.role WHEN 'cover' THEN 0 ELSE 1 END, nf.sort, nf.id
+             LIMIT 1`
+          )
+          .get(noteId)
+      : db
+          .prepare(
+            `SELECT nf.file_id AS file_id
+             FROM note_files nf
+             JOIN files f ON f.id = nf.file_id
+             WHERE nf.note_id = ? AND nf.file_id != ? AND f.mime LIKE 'image/%'
+             ORDER BY CASE nf.role WHEN 'cover' THEN 0 ELSE 1 END, nf.sort, nf.id
+             LIMIT 1`
+          )
+          .get(noteId, exceptFileId)
+  ) as { file_id: number } | undefined;
+  return row ? row.file_id : null;
 }
 
 export function setCover(noteId: number, fileId: number) {
@@ -143,6 +188,9 @@ export function setCover(noteId: number, fileId: number) {
     .prepare("SELECT id FROM note_files WHERE note_id = ? AND file_id = ?")
     .get(noteId, fileId);
   if (!link) throw new Error("Файл не привязан к заметке");
+  const row = getFileRow(fileId);
+  if (row && isVideoMime(row.mime)) throw new Error("Видео нельзя сделать обложкой");
+  if (row && isDocMime(row.mime)) throw new Error("PDF нельзя сделать обложкой");
   db.prepare("UPDATE note_files SET role = 'result' WHERE note_id = ? AND role = 'cover'").run(noteId);
   db.prepare("UPDATE note_files SET role = 'cover', sort = 0 WHERE note_id = ? AND file_id = ?").run(noteId, fileId);
   db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(fileId, noteId);
@@ -178,10 +226,7 @@ export function detachFile(noteId: number, fileId: number) {
     | { cover_file_id: number | null }
     | undefined;
   if (note && Number(note.cover_file_id) === fileId) {
-    const next = db
-      .prepare("SELECT file_id FROM note_files WHERE note_id = ? ORDER BY sort, id LIMIT 1")
-      .get(noteId) as { file_id: number } | undefined;
-    db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(next ? next.file_id : null, noteId);
+    db.prepare("UPDATE notes SET cover_file_id = ? WHERE id = ?").run(nextImageFileId(noteId), noteId);
   }
 
   const stillUsed = db.prepare("SELECT 1 AS x FROM note_files WHERE file_id = ?").get(fileId);

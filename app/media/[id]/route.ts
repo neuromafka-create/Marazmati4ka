@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { NextResponse } from "next/server";
 import { absoluteFilePath, getFileRow } from "@/lib/files";
+import { serveStoredFile } from "@/lib/media-http";
 
 export const runtime = "nodejs";
 
@@ -12,11 +13,5 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (!row) return new NextResponse("Not found", { status: 404 });
   const abs = absoluteFilePath(row.path);
   if (!fs.existsSync(abs)) return new NextResponse("Missing file", { status: 404 });
-  const buf = fs.readFileSync(abs);
-  return new NextResponse(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": row.mime || "application/octet-stream",
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+  return serveStoredFile(_req, abs, row.mime, row.orig_name);
 }

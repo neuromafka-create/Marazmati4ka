@@ -1,15 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Taxon } from "@/lib/taxonomy";
 import type { NoteFile } from "@/lib/notes";
 import type { Edit } from "@/lib/md-format";
 import { wrapInline } from "@/lib/md-format";
+import { libraryReturnHref } from "@/lib/library-return";
 import { EditorToolbar, type EditorToolbarHandle } from "./EditorToolbar";
+import { LibraryLink } from "./LibraryLink";
 import { IllustrateButton } from "./IllustrateButton";
 import { Markdown } from "./Markdown";
+import { isDocFile, isVideoFile, NoteMedia } from "./NoteMedia";
 
 type Role = "cover" | "result" | "reference" | "inline" | "attachment";
 
@@ -18,6 +20,8 @@ function collectClipboardImages(e: ClipboardEvent) {
   const seen = new Set<string>();
   const add = (f: File | null) => {
     if (!f) return;
+    if (f.type.startsWith("video/") || f.type === "application/pdf") return;
+    if (/\.(mp4|webm|mov|m4v|mkv|pdf)$/i.test(f.name)) return;
     const looksImage =
       f.type.startsWith("image/") ||
       !f.type ||
@@ -54,6 +58,60 @@ function collectClipboardImages(e: ClipboardEvent) {
     return 9;
   };
   return [images.slice().sort((a, b) => rank(a.type) - rank(b.type) || b.size - a.size)[0]];
+}
+
+function collectClipboardVideos(e: ClipboardEvent) {
+  const videos: File[] = [];
+  const seen = new Set<string>();
+  const add = (f: File | null) => {
+    if (!f) return;
+    const looksVideo = f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name);
+    if (!looksVideo) return;
+    const key = `${f.type}:${f.size}:${f.name || "video"}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    videos.push(f);
+  };
+  const items = e.clipboardData?.items;
+  if (items?.length) {
+    for (const item of items) {
+      if (item.kind === "file") add(item.getAsFile());
+    }
+  }
+  if (!videos.length && e.clipboardData?.files) {
+    for (const f of Array.from(e.clipboardData.files)) add(f);
+  }
+  return videos;
+}
+
+function collectClipboardPdfs(e: ClipboardEvent) {
+  const docs: File[] = [];
+  const seen = new Set<string>();
+  const add = (f: File | null) => {
+    if (!f) return;
+    const looksPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!looksPdf) return;
+    const key = `${f.type}:${f.size}:${f.name || "file.pdf"}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    docs.push(f);
+  };
+  const items = e.clipboardData?.items;
+  if (items?.length) {
+    for (const item of items) {
+      if (item.kind === "file") add(item.getAsFile());
+    }
+  }
+  if (!docs.length && e.clipboardData?.files) {
+    for (const f of Array.from(e.clipboardData.files)) add(f);
+  }
+  return docs;
+}
+
+function roleForVideo(role: Role): Role | null {
+  if (role === "cover") return null;
+  if (role === "inline") return "result";
+  return role;
 }
 
 export function Editor({
@@ -160,7 +218,9 @@ export function Editor({
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       const images = collectClipboardImages(e);
-      if (!images.length) return;
+      const videos = collectClipboardVideos(e);
+      const pdfs = collectClipboardPdfs(e);
+      if (!images.length && !videos.length && !pdfs.length) return;
       if (pasting.current) {
         e.preventDefault();
         return;
@@ -170,7 +230,19 @@ export function Editor({
       const nextRole: Role =
         hoverRole.current ||
         (inText ? "inline" : selectedDomains.includes("image") ? "result" : "attachment");
-      void uploadMany(images, nextRole, inText);
+      void (async () => {
+        if (videos.length) {
+          const videoRole = roleForVideo(nextRole);
+          if (!videoRole) {
+            setErr("Видео нельзя сделать обложкой. Выберите «результат», «референс» или «файл».");
+            return;
+          }
+          await uploadMany(videos, videoRole, false);
+          return;
+        }
+        if (images.length) await uploadMany(images, nextRole, inText);
+        if (pdfs.length) await uploadMany(pdfs, "attachment", false);
+      })();
     }
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
@@ -238,7 +310,7 @@ export function Editor({
     const res = await fetch(`/api/files/${fileId}?noteId=${noteId}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setErr(data.error || "Не удалось убрать картинку");
+      setErr(data.error || "Не удалось убрать файл");
       return;
     }
     setFiles((prev) => prev.filter((f) => f.file_id !== fileId));
@@ -253,6 +325,30 @@ export function Editor({
     const list = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
     if (list.length) await uploadMany(list, role, false);
+  }
+
+  async function onPickVideo(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = e.target.files ? Array.from(e.target.files) : [];
+    e.target.value = "";
+    if (!list.length) return;
+    const videoRole = roleForVideo(role);
+    if (!videoRole) {
+      setErr("Видео нельзя сделать обложкой. Выберите «результат», «референс» или «файл».");
+      return;
+    }
+    await uploadMany(list, videoRole, false);
+  }
+
+  async function onPickDoc(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = e.target.files ? Array.from(e.target.files) : [];
+    e.target.value = "";
+    if (!list.length) return;
+    const pdfs = list.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    if (!pdfs.length) {
+      setErr("В этот список кладут PDF");
+      return;
+    }
+    await uploadMany(pdfs, "attachment", false);
   }
 
   async function save() {
@@ -277,18 +373,31 @@ export function Editor({
     if (initial.draft) {
       await fetch(`/api/notes/${noteId}`, { method: "DELETE" });
     }
-    router.push(initial.draft ? "/" : `/n/${noteId}`);
+    router.push(initial.draft ? libraryReturnHref() : `/n/${noteId}`);
     router.refresh();
+  }
+
+  const mediaFiles = files.filter((f) => !isDocFile(f.mime));
+  const docFiles = files.filter((f) => isDocFile(f.mime));
+  function renderSave() {
+    return (
+      <button className="btn primary" type="button" disabled={busy} onClick={() => void save()}>
+        {busy ? "Сохраняю…" : "Сохранить"}
+      </button>
+    );
   }
 
   return (
     <div className="editor-page">
       <div className="crumbs">
-        <Link href="/">Библиотека</Link>
+        <LibraryLink>Библиотека</LibraryLink>
         <span>/</span>
         <span>{initial.draft ? "Новая заметка" : "Правка"}</span>
       </div>
       <div className="form">
+        <div className="actions" style={{ marginLeft: 0 }}>
+          {renderSave()}
+        </div>
         <label>
           Заголовок
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Как назвать" />
@@ -416,50 +525,63 @@ export function Editor({
             </select>
           </label>
           <label className="btn" style={{ textTransform: "none", letterSpacing: 0 }}>
-            Выбрать файл
+            Выбрать картинку
             <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onChange={onPick} />
           </label>
-          <span className="hint">или Ctrl+V — скриншот и картинка из буфера</span>
+          <label className="btn" style={{ textTransform: "none", letterSpacing: 0 }}>
+            Выбрать видео
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v"
+              multiple
+              hidden
+              onChange={onPickVideo}
+            />
+          </label>
+          <span className="hint">Картинка ещё и Ctrl+V. Видео — mp4, webm или mov, до 500 МБ.</span>
         </div>
         <IllustrateButton
           noteId={noteId}
           hasKey={hasAiKey}
-          gallery={files}
+          gallery={mediaFiles}
           defaultPrompt={[title, body.slice(0, 400)].filter(Boolean).join("\n\n")}
           defaultRole={role === "attachment" ? "result" : role}
           onDone={() => void reloadFiles()}
         />
 
-        {files.length > 0 && (
+        {mediaFiles.length > 0 && (
           <div className="gallery">
-            {files.map((f) => (
-              <figure key={f.id}>
-                <button
-                  type="button"
-                  className="gallery-x"
-                  title="Убрать картинку"
-                  onClick={() => void removeFile(f.file_id)}
-                >
-                  ×
-                </button>
-                <img src={f.url} alt={f.orig_name} />
-                <figcaption>
-                  <label className="gallery-role">
-                    <span className="sr-only">Роль картинки</span>
-                    <select
-                      value={f.role}
-                      onChange={(e) => void changeRole(f.file_id, e.target.value as Role)}
-                    >
-                      <option value="cover">Обложка</option>
-                      <option value="result">Результат</option>
-                      <option value="reference">Референс</option>
-                      <option value="attachment">Файл</option>
-                      <option value="inline">В тексте</option>
-                    </select>
-                  </label>
-                </figcaption>
-              </figure>
-            ))}
+            {mediaFiles.map((f) => {
+              const video = isVideoFile(f.mime);
+              return (
+                <figure key={f.id} className={video ? "is-video" : undefined}>
+                  <button
+                    type="button"
+                    className="gallery-x"
+                    title={video ? "Убрать видео" : "Убрать картинку"}
+                    onClick={() => void removeFile(f.file_id)}
+                  >
+                    ×
+                  </button>
+                  <NoteMedia mime={f.mime} url={f.url} name={f.orig_name} />
+                  <figcaption>
+                    <label className="gallery-role">
+                      <span className="sr-only">{video ? "Роль видео" : "Роль картинки"}</span>
+                      <select
+                        value={f.role}
+                        onChange={(e) => void changeRole(f.file_id, e.target.value as Role)}
+                      >
+                        {video ? null : <option value="cover">Обложка</option>}
+                        <option value="result">Результат</option>
+                        <option value="reference">Референс</option>
+                        <option value="attachment">Файл</option>
+                        {video ? null : <option value="inline">В тексте</option>}
+                      </select>
+                    </label>
+                  </figcaption>
+                </figure>
+              );
+            })}
           </div>
         )}
 
@@ -507,11 +629,33 @@ export function Editor({
             </div>
           ) : null}
         </div>
+        <div className="attach-docs">
+          <div className="attach-docs-head">
+            <span className="fmt-heading">Файлы</span>
+            <label className="btn" style={{ textTransform: "none", letterSpacing: 0 }}>
+              Выбрать PDF
+              <input type="file" accept="application/pdf,.pdf" multiple hidden onChange={onPickDoc} />
+            </label>
+          </div>
+          <p className="hint">Не картинка и не видео — PDF, до 50 МБ.</p>
+          {docFiles.length > 0 ? (
+            <ul className="file-list">
+              {docFiles.map((f) => (
+                <li key={f.id} className="file-row">
+                  <a href={f.url} target="_blank" rel="noreferrer">
+                    {f.orig_name || "файл.pdf"}
+                  </a>
+                  <button type="button" className="btn ghost" onClick={() => void removeFile(f.file_id)}>
+                    Убрать
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         {err ? <p className="error">{err}</p> : null}
         <div className="actions" style={{ marginLeft: 0 }}>
-          <button className="btn primary" type="button" disabled={busy} onClick={save}>
-            {busy ? "Сохраняю…" : "Сохранить"}
-          </button>
+          {renderSave()}
           <button className="btn ghost" type="button" onClick={cancel}>
             Отмена
           </button>

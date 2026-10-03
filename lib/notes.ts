@@ -82,7 +82,9 @@ export function listNotes(opts: {
   let sql = `
     SELECT n.id, n.title, n.type, n.domain, n.slug, n.snippet, n.source,
            n.cover_file_id, n.created_at, n.updated_at,
-      CASE WHEN n.cover_file_id IS NOT NULL THEN '/media/' || n.cover_file_id ELSE NULL END AS cover_url
+      CASE WHEN n.cover_file_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM files cf WHERE cf.id = n.cover_file_id AND cf.mime LIKE 'image/%'
+      ) THEN '/media/' || n.cover_file_id ELSE NULL END AS cover_url
     FROM notes n
   `;
 
@@ -167,7 +169,9 @@ export function getNote(id: number) {
   const note = db
     .prepare(
       `SELECT n.*,
-        CASE WHEN n.cover_file_id IS NOT NULL THEN '/media/' || n.cover_file_id ELSE NULL END AS cover_url
+        CASE WHEN n.cover_file_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM files cf WHERE cf.id = n.cover_file_id AND cf.mime LIKE 'image/%'
+      ) THEN '/media/' || n.cover_file_id ELSE NULL END AS cover_url
        FROM notes n WHERE n.id = ?`
     )
     .get(id) as Note | undefined;

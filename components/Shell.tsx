@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { libraryUrl } from "@/lib/library-url";
+import { readLibrarySpot, saveLibrarySpot } from "@/lib/library-return";
+import { LibraryLink } from "./LibraryLink";
 
 export function Shell(props: {
   children: React.ReactNode;
@@ -29,27 +31,30 @@ function ShellInner({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const path = usePathname();
   const [q, setQ] = useState(initialQuery);
 
   return (
     <div className="app">
       <header className="topbar">
-        <Link href="/" className="brand">
+        <LibraryLink className="brand">
           <strong>{brand.name}</strong>
           <span>{brand.tag}</span>
-        </Link>
+        </LibraryLink>
         <form
           className="search"
           onSubmit={(e) => {
             e.preventDefault();
             const next = q.trim();
+            const fromShelf = path === "/" ? null : readLibrarySpot();
+            const shelf = fromShelf ? new URL(fromShelf.href, "http://local") : null;
             router.push(
               libraryUrl({
                 q: next,
-                types: params.getAll("type"),
-                domains: params.getAll("domain"),
-                sort: params.get("sort") || undefined,
-                dir: params.get("dir") || undefined,
+                types: shelf ? shelf.searchParams.getAll("type") : params.getAll("type"),
+                domains: shelf ? shelf.searchParams.getAll("domain") : params.getAll("domain"),
+                sort: (shelf ? shelf.searchParams.get("sort") : params.get("sort")) || undefined,
+                dir: (shelf ? shelf.searchParams.get("dir") : params.get("dir")) || undefined,
               })
             );
           }}
@@ -65,7 +70,7 @@ function ShellInner({
             Настройки
           </Link>
           <ThemeToggle />
-          <Link className="btn primary" href="/new">
+          <Link className="btn primary" href="/new" onClick={() => saveLibrarySpot()}>
             Новая
           </Link>
         </div>

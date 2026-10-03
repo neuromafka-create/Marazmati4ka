@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { CardActions } from "./CardActions";
 import { Filters } from "./Filters";
+import { LibraryRestore } from "./LibraryRestore";
+import { NoteOpenLink } from "./NoteOpenLink";
 import { SortBar } from "./SortBar";
 import { coverSrc, type NoteDir, type NoteSort } from "@/lib/notes";
 import type { Taxon } from "@/lib/taxonomy";
@@ -42,6 +44,7 @@ export function Library({
 }) {
   return (
     <div className="layout">
+      <LibraryRestore />
       <Filters
         types={types}
         domains={domains}
@@ -75,8 +78,8 @@ export function Library({
         ) : (
           <div className="grid">
             {notes.map((n) => (
-              <article key={n.id} className="card">
-                <Link href={`/n/${n.id}`} className="card-main">
+              <article key={n.id} className="card" id={`note-${n.id}`}>
+                <NoteOpenLink noteId={n.id} href={`/n/${n.id}`} className="card-main">
                   <div className="card-cover">
                     <img
                       src={coverSrc(n.cover_url)}
@@ -98,7 +101,7 @@ export function Library({
                     <h3>{n.title || "Без названия"}</h3>
                     {n.snippet ? <p>{n.snippet}</p> : null}
                   </div>
-                </Link>
+                </NoteOpenLink>
                 <CardActions noteId={n.id} title={n.title} />
               </article>
             ))}
