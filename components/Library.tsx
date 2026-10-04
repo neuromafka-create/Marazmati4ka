@@ -4,7 +4,7 @@ import { Filters } from "./Filters";
 import { LibraryRestore } from "./LibraryRestore";
 import { NoteOpenLink } from "./NoteOpenLink";
 import { SortBar } from "./SortBar";
-import { coverSrc, type NoteDir, type NoteSort } from "@/lib/notes";
+import { FALLBACK_COVER, coverSrc, type NoteDir, type NoteSort } from "@/lib/notes";
 import type { Taxon } from "@/lib/taxonomy";
 
 export type CardNote = {
@@ -29,6 +29,7 @@ export function Library({
   domainLabels,
   sort,
   dir,
+  fallbackCover = FALLBACK_COVER,
 }: {
   notes: CardNote[];
   total: number;
@@ -41,6 +42,7 @@ export function Library({
   domainLabels: Record<string, string>;
   sort: NoteSort;
   dir: NoteDir;
+  fallbackCover?: string;
 }) {
   return (
     <div className="layout">
@@ -82,7 +84,7 @@ export function Library({
                 <NoteOpenLink noteId={n.id} href={`/n/${n.id}`} className="card-main">
                   <div className="card-cover">
                     <img
-                      src={coverSrc(n.cover_url)}
+                      src={coverSrc(n.cover_url, fallbackCover)}
                       alt=""
                       className={n.cover_url ? undefined : "is-fallback"}
                       loading="lazy"

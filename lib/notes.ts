@@ -4,6 +4,7 @@ import { getDb } from "./db";
 import { extractPrompt, hashText, nowIso, slugify, snippetOf } from "./markdown";
 import { defaultDomainSlug, defaultTypeSlug, isDomain, isType } from "./taxonomy";
 import { absPath, DOCS_DIR, TRASH_DIR } from "./paths";
+import { FALLBACK_COVER } from "./placeholder-cover";
 
 export type Note = {
   id: number;
@@ -39,10 +40,10 @@ export type NoteFile = {
 export type NoteSort = "title" | "created" | "updated";
 export type NoteDir = "asc" | "desc";
 
-export const FALLBACK_COVER = "/cover-placeholder.jpg";
+export { FALLBACK_COVER };
 
-export function coverSrc(url?: string | null) {
-  return url || FALLBACK_COVER;
+export function coverSrc(url?: string | null, fallback = FALLBACK_COVER) {
+  return url || fallback;
 }
 
 export function parseSort(raw?: string | null): NoteSort {

@@ -16,11 +16,16 @@ export async function POST(req: Request) {
   if (key && !key.startsWith("sk-gw-")) {
     return NextResponse.json({ error: "Ключ Hubris начинается с sk-gw-" }, { status: 400 });
   }
-  const next = saveSettings({
-    hubrisApiKey: key,
-    hubrisBaseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
-    hubrisChatModel: typeof body.chatModel === "string" ? body.chatModel : undefined,
-    hubrisImageModel: typeof body.imageModel === "string" ? body.imageModel : undefined,
-  });
-  return NextResponse.json(next);
+  try {
+    const next = saveSettings({
+      hubrisApiKey: key,
+      hubrisBaseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
+      hubrisChatModel: typeof body.chatModel === "string" ? body.chatModel : undefined,
+      hubrisImageModel: typeof body.imageModel === "string" ? body.imageModel : undefined,
+      placeholderCover: typeof body.placeholderCover === "string" ? body.placeholderCover : undefined,
+    });
+    return NextResponse.json(next);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Ошибка" }, { status: 400 });
+  }
 }

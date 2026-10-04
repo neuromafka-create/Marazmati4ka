@@ -5,6 +5,7 @@ desktop/payload
 data/*.db
 data/*.db-*
 data/media
+data/placeholder-cover.*
 _trash
 _sort
 _sort_previews.jsonl

@@ -1,7 +1,7 @@
 {
   "name": "marazmati4ka",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Личный блокнот промптов и инструкций",
   "author": "neuromafka-create",
   "main": "desktop/main.cjs",

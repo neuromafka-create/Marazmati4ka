@@ -1,6 +1,7 @@
 import { Library } from "@/components/Library";
 import { AppShell } from "@/components/AppShell";
 import { listNotes, parseDir, parseSort, stats, type Note } from "@/lib/notes";
+import { placeholderCoverUrl } from "@/lib/settings";
 import { taxonPayload } from "@/lib/taxonomy";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function Home({
   }
   const { total } = stats();
   const tax = taxonPayload();
+  const fallbackCover = placeholderCoverUrl();
   const cards = notes.map((n) => ({
     id: Number(n.id),
     title: String(n.title || ""),
@@ -62,6 +64,7 @@ export default async function Home({
         domainLabels={tax.domainLabels}
         sort={sort}
         dir={dir}
+        fallbackCover={fallbackCover}
       />
     </AppShell>
   );
