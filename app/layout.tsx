@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import { getBrand } from "@/lib/brand";
 import { ensureImported } from "@/lib/boot";
+import { publicSettings } from "@/lib/settings";
 import "./globals.css";
 
 const sans = IBM_Plex_Sans({
@@ -23,8 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   ensureImported();
+  const quoteStyle = publicSettings().quoteStyle;
   return (
-    <html lang="ru" data-theme="dark" suppressHydrationWarning>
+    <html lang="ru" data-theme="dark" data-quote={quoteStyle} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

@@ -1,4 +1,5 @@
 import { getBrand } from "@/lib/brand";
+import { publicSettings } from "@/lib/settings";
 import { Shell } from "./Shell";
 
 export function AppShell({
@@ -9,7 +10,7 @@ export function AppShell({
   initialQuery?: string;
 }) {
   return (
-    <Shell initialQuery={initialQuery} brand={getBrand()}>
+    <Shell initialQuery={initialQuery} brand={getBrand()} quoteStyle={publicSettings().quoteStyle}>
       {children}
     </Shell>
   );

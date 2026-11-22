@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       hubrisChatModel: typeof body.chatModel === "string" ? body.chatModel : undefined,
       hubrisImageModel: typeof body.imageModel === "string" ? body.imageModel : undefined,
       placeholderCover: typeof body.placeholderCover === "string" ? body.placeholderCover : undefined,
+      quoteStyle: typeof body.quoteStyle === "string" ? body.quoteStyle : undefined,
     });
     return NextResponse.json(next);
   } catch (err) {

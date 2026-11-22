@@ -1,6 +1,7 @@
 import { AiSettings } from "@/components/AiSettings";
 import { AppShell } from "@/components/AppShell";
 import { CoverSettings } from "@/components/CoverSettings";
+import { QuoteSettings } from "@/components/QuoteSettings";
 import { TaxonManager } from "@/components/TaxonManager";
 import { publicSettings } from "@/lib/settings";
 import { listTaxons, seedTaxons } from "@/lib/taxonomy";
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <h1 className="settings-title">Настройки</h1>
         <p className="settings-lead">Локальный блокнот: нейросеть, типы и области. Всё живёт в вашей базе.</p>
         <CoverSettings initial={settings} />
+        <QuoteSettings initial={settings} />
         <AiSettings initial={settings} />
         <section className="settings-block">
           <h2>Типы и области</h2>

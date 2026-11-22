@@ -365,7 +365,7 @@ export function Editor({
       setErr(data.error || "Не сохранилось");
       return;
     }
-    router.push(`/n/${noteId}`);
+    router.push(libraryReturnHref());
     router.refresh();
   }
 

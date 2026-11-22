@@ -10,6 +10,7 @@ import {
   presetCoverSrc,
   type PlaceholderCoverId,
 } from "./placeholder-cover";
+import { DEFAULT_QUOTE_STYLE, isQuoteStyleId, parseQuoteStyle, type QuoteStyleId } from "./quote-style";
 
 export const HUBRIS_DEFAULT_BASE = "https://api.hubris.pw/v1";
 export const HUBRIS_DEFAULT_CHAT = "anthropic/claude-haiku-4.5";
@@ -21,6 +22,7 @@ export type AppSettings = {
   hubrisChatModel: string;
   hubrisImageModel: string;
   placeholderCover: PlaceholderCoverId;
+  quoteStyle: QuoteStyleId;
 };
 
 const KEYS = {
@@ -30,6 +32,7 @@ const KEYS = {
   hubrisImageModel: "hubris_image_model",
   placeholderCover: "placeholder_cover",
   placeholderCoverV: "placeholder_cover_v",
+  quoteStyle: "quote_style",
 } as const;
 
 function ensureTable() {
@@ -63,6 +66,7 @@ export function getSettings(): AppSettings {
     hubrisChatModel: getRaw(KEYS.hubrisChatModel) || HUBRIS_DEFAULT_CHAT,
     hubrisImageModel: getRaw(KEYS.hubrisImageModel) || HUBRIS_DEFAULT_IMAGE,
     placeholderCover: readPlaceholderCoverId(),
+    quoteStyle: parseQuoteStyle(getRaw(KEYS.quoteStyle) || DEFAULT_QUOTE_STYLE),
   };
 }
 
@@ -87,6 +91,7 @@ export function publicSettings() {
     placeholderCoverUrl: placeholderCoverUrl(),
     hasCustomCover: Boolean(custom),
     customCoverUrl: custom ? customCoverSrc(customVersion) : null,
+    quoteStyle: s.quoteStyle,
   };
 }
 
@@ -104,6 +109,7 @@ export function saveSettings(patch: {
   hubrisChatModel?: string;
   hubrisImageModel?: string;
   placeholderCover?: string;
+  quoteStyle?: string;
 }) {
   if (patch.hubrisApiKey !== undefined) {
     const key = patch.hubrisApiKey.trim();
@@ -122,7 +128,16 @@ export function saveSettings(patch: {
   if (patch.placeholderCover !== undefined) {
     savePlaceholderCover(patch.placeholderCover);
   }
+  if (patch.quoteStyle !== undefined) {
+    saveQuoteStyle(patch.quoteStyle);
+  }
   return publicSettings();
+}
+
+export function saveQuoteStyle(raw: string) {
+  const id = raw.trim();
+  if (!isQuoteStyleId(id)) throw new Error("Нет такого цвета цитаты");
+  putSimple(KEYS.quoteStyle, id);
 }
 
 export function placeholderCoverUrl() {

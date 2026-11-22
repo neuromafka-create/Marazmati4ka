@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { libraryUrl } from "@/lib/library-url";
 import { readLibrarySpot, saveLibrarySpot } from "@/lib/library-return";
@@ -12,6 +12,7 @@ export function Shell(props: {
   children: React.ReactNode;
   initialQuery?: string;
   brand?: { name: string; tag: string; search: string };
+  quoteStyle?: string;
 }) {
   return (
     <Suspense>
@@ -24,15 +25,21 @@ function ShellInner({
   children,
   initialQuery = "",
   brand = { name: "Marazmati4ka", tag: "блокнот", search: "Найти промпт, гайд, термин…" },
+  quoteStyle = "bronze",
 }: {
   children: React.ReactNode;
   initialQuery?: string;
   brand?: { name: string; tag: string; search: string };
+  quoteStyle?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const path = usePathname();
   const [q, setQ] = useState(initialQuery);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-quote", quoteStyle);
+  }, [quoteStyle]);
 
   return (
     <div className="app">
