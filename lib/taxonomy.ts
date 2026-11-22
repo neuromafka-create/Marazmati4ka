@@ -134,6 +134,29 @@ export function createTaxon(input: { kind: TaxonKind; label: string; slug?: stri
   return getTaxon(Number(info.lastInsertRowid))!;
 }
 
+export function moveTaxon(id: number, direction: "up" | "down") {
+  const current = getTaxon(id);
+  if (!current) throw new Error("Не найдено");
+  const items = listTaxons(current.kind);
+  const index = items.findIndex((t) => t.id === id);
+  const next = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || next < 0 || next >= items.length) return current;
+  const order = items.slice();
+  const [row] = order.splice(index, 1);
+  order.splice(next, 0, row);
+  const db = getDb();
+  const upd = db.prepare("UPDATE taxons SET sort = ? WHERE id = ?");
+  db.exec("BEGIN");
+  try {
+    order.forEach((t, i) => upd.run(i, t.id));
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+  return getTaxon(id)!;
+}
+
 export function updateTaxon(id: number, input: { label?: string; slug?: string }) {
   const current = getTaxon(id);
   if (!current) throw new Error("Не найдено");

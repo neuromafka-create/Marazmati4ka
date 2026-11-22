@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteTaxon, getTaxon, updateTaxon, usageCount } from "@/lib/taxonomy";
+import { deleteTaxon, getTaxon, listTaxons, moveTaxon, updateTaxon, usageCount } from "@/lib/taxonomy";
 
 export const runtime = "nodejs";
 
@@ -9,6 +9,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const body = await req.json();
   try {
+    if (body.move === "up" || body.move === "down") {
+      const taxon = moveTaxon(Number(id), body.move);
+      return NextResponse.json({ taxon, items: listTaxons(taxon.kind) });
+    }
     const taxon = updateTaxon(Number(id), {
       label: body.label !== undefined ? String(body.label) : undefined,
       slug: body.slug !== undefined ? String(body.slug) : undefined,

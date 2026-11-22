@@ -935,6 +935,10 @@ html[data-theme="light"] .card-icon:hover { color: #f7f5ef; }
   padding: 10px 12px;
 }
 .taxon-row > div:first-child, .taxon-edit, .taxon-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.taxon-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.taxon-move { display: inline-flex; gap: 4px; }
+.taxon-move .btn { padding: 2px 8px; line-height: 1.2; }
+.taxon-move .btn:disabled { opacity: 0.35; cursor: default; }
 .taxon-edit input, .taxon-add input {
   background: var(--bg);
   border: 1px solid var(--line);

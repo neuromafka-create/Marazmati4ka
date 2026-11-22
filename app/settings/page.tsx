@@ -24,7 +24,8 @@ export default function SettingsPage() {
         <section className="settings-block">
           <h2>Типы и области</h2>
           <p className="settings-lead" style={{ marginBottom: 16 }}>
-            Как разделы инфоблока: живут в базе. Код идёт в путь файла, название — на экране.
+            Как разделы инфоблока: живут в базе. Код идёт в путь файла, название — на экране. Порядок в
+            списках — стрелками вверх и вниз.
           </p>
           <TaxonManager types={listTaxons("type")} domains={listTaxons("domain")} />
         </section>
